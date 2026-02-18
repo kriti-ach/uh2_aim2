@@ -121,6 +121,25 @@ def calc_discount_rate_glm(df: pd.DataFrame) -> tuple[float, float]:
 # QC SUMMARY FUNCTIONS
 # =============================================================================
 
+def standardize_subject_numbers(subj: str) -> str:
+    """Standardize subject numbers to remove the "s" prefix."""
+    return subj.replace("s", "")
+
+
+def compute_qc_summary(df: pd.DataFrame, task: str) -> pd.DataFrame:
+    """Compute both RT and accuracy QC metrics for a task."""
+    rt_df = compute_rt_summary(df, task)
+    acc_df = compute_acc_summary(df, task)
+    
+    # Merge RT and accuracy metrics
+    combined = pd.concat([rt_df, acc_df], axis=1)
+    
+    # Add mean and std rows
+    combined.loc["mean"] = combined.mean(numeric_only=True)
+    combined.loc["std"] = combined.std(numeric_only=True)
+    
+    return combined
+
 
 def compute_rt_summary(df: pd.DataFrame, task: str) -> pd.DataFrame:
     """Compute RT summary statistics by subject for a task."""
@@ -130,7 +149,8 @@ def compute_rt_summary(df: pd.DataFrame, task: str) -> pd.DataFrame:
     # Group by subject and condition, compute mean RT
     results = []
     for subj in df.worker_id.unique():
-        subj_df = df[df.worker_id == subj]
+        subj = standardize_subject_numbers(subj)
+        subj_df = df[df.worker_id == f"s{subj}"] if f"s{subj}" in df.worker_id.values else df[df.worker_id == subj]
         row = {"worker_id": subj}
 
         for cond in conditions:
@@ -164,7 +184,8 @@ def _compute_standard_acc(df: pd.DataFrame, task: str) -> pd.DataFrame:
 
     results = []
     for subj in df.worker_id.unique():
-        subj_df = df[df.worker_id == subj]
+        subj = standardize_subject_numbers(subj)
+        subj_df = df[df.worker_id == f"s{subj}"] if f"s{subj}" in df.worker_id.values else df[df.worker_id == subj]
         row = {"worker_id": subj}
 
         # Accuracy by condition
@@ -199,7 +220,8 @@ def _compute_discount_acc(df: pd.DataFrame) -> pd.DataFrame:
     """Compute accuracy metrics for discount task."""
     results = []
     for subj in df.worker_id.unique():
-        subj_df = df[df.worker_id == subj]
+        subj = standardize_subject_numbers(subj)
+        subj_df = df[df.worker_id == f"s{subj}"] if f"s{subj}" in df.worker_id.values else df[df.worker_id == subj]
 
         larger_later_pct = (subj_df.choice == "larger_later").mean()
         k, r2 = calc_discount_rate_glm(subj_df)
@@ -221,7 +243,8 @@ def _compute_manip_acc(df: pd.DataFrame) -> pd.DataFrame:
 
     results = []
     for subj in df.worker_id.unique():
-        subj_df = df[df.worker_id == subj]
+        subj = standardize_subject_numbers(subj)
+        subj_df = df[df.worker_id == f"s{subj}"] if f"s{subj}" in df.worker_id.values else df[df.worker_id == subj]
         rating_df = subj_df[(subj_df.trial_id == "current_rating") & (subj_df.trial_type != "no_stim")]
 
         row = {"worker_id": subj}
@@ -239,29 +262,3 @@ def _compute_manip_acc(df: pd.DataFrame) -> pd.DataFrame:
         results.append(row)
 
     return pd.DataFrame(results).set_index("worker_id")
-
-
-# =============================================================================
-# DATA FORMATTING
-# =============================================================================
-
-
-def format_qc_results(qc_dict: dict[str, pd.DataFrame], add_summary_stats: bool = True) -> pd.DataFrame:
-    """Combine QC results from multiple tasks into a single DataFrame."""
-    dfs = []
-    for task, task_df in qc_dict.items():
-        # Prefix columns with task name
-        renamed = task_df.add_prefix(f"{task}_")
-        dfs.append(renamed)
-
-    combined = pd.concat(dfs, axis=1)
-
-    if add_summary_stats:
-        # Add mean and std rows
-        summary = pd.DataFrame({
-            col: [combined[col].mean(), combined[col].std()]
-            for col in combined.columns
-        }, index=["mean", "std"])
-        combined = pd.concat([summary, combined])
-
-    return combined
