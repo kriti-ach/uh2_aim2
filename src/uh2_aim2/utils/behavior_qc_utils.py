@@ -42,6 +42,46 @@ def calc_omission_rate(df: pd.DataFrame, task: str) -> float:
 
     return (trials.key_press == NO_RESPONSE).mean()
 
+def calc_commission_rate(df: pd.DataFrame, task: str) -> dict[str, float]:
+    """Calculate commission rate for stop tasks."""
+    if df.empty:
+        return {}
+
+    if task == "stopSignal":
+        go_trials = df[df.trial_type == "go"]
+        if len(go_trials) == 0:
+            return {"commission_rate": np.nan}
+        return {
+            "commission_rate": (go_trials.key_press != go_trials.correct_response).mean()
+        }
+    
+    elif task == "motorSelectiveStop":
+        # For motor selective stop, return dict with different commission rates
+        crit_go_trials = df[df.trial_type == "crit_go"]
+        crit_commission = (
+            (crit_go_trials.key_press != crit_go_trials.correct_response).mean()
+            if len(crit_go_trials) > 0 else np.nan
+        )
+        
+        noncrit_signal_trials = df[df.trial_type == "noncrit_signal"]
+        noncrit_signal_commission = (
+            (noncrit_signal_trials.key_press != noncrit_signal_trials.correct_response).mean()
+            if len(noncrit_signal_trials) > 0 else np.nan
+        )
+        
+        noncrit_nosignal_trials = df[df.trial_type == "noncrit_nosignal"]
+        noncrit_nosignal_commission = (
+            (noncrit_nosignal_trials.key_press != noncrit_nosignal_trials.correct_response).mean()
+            if len(noncrit_nosignal_trials) > 0 else np.nan
+        )
+        
+        return {
+            "crit_commission_rate": crit_commission,
+            "noncrit_signal_commission_rate": noncrit_signal_commission,
+            "noncrit_nosignal_commission_rate": noncrit_nosignal_commission,
+        }
+    
+    return {}
 
 def calc_ssrt(df: pd.DataFrame, task: str) -> float:
     """Calculate Stop Signal Reaction Time using integration method."""
@@ -65,7 +105,7 @@ def calc_ssrt(df: pd.DataFrame, task: str) -> float:
     nth = prob_stop_failure * (len(sorted_go) - 1)
     nth_rt = sorted_go.iloc[[floor(nth), ceil(nth)]].mean()
 
-    return nth_rt - stop_trials.SS_delay.mean()
+    return nth_rt - stop_trials.SS_delay.mean() * SECONDS_TO_MILLISECONDS
 
 
 def calc_stop_success_rate(df: pd.DataFrame, task: str) -> float:
@@ -203,9 +243,13 @@ def _compute_standard_acc(df: pd.DataFrame, task: str) -> pd.DataFrame:
 
             row["stop_success_rate"] = calc_stop_success_rate(subj_df, task)
             row["SSRT"] = calc_ssrt(subj_df, task)
-            row["mean_SSD"] = (stop_trials.SS_delay.mean() * SECONDS_TO_MILLISECONDS) if len(stop_trials) > 0 else np.nan
-            row["max_SSD_count"] = (stop_trials.SS_delay * SECONDS_TO_MILLISECONDS == MAX_SSD).sum() if len(stop_trials) > 0 else 0
-            row["min_SSD_count"] = (stop_trials.SS_delay * SECONDS_TO_MILLISECONDS == MIN_SSD).sum() if len(stop_trials) > 0 else 0
+            row["mean_SSD"] = stop_trials.SS_delay.mean() if len(stop_trials) > 0 else np.nan
+            row["max_SSD_count"] = (stop_trials.SS_delay == MAX_SSD).sum() if len(stop_trials) > 0 else 0
+            row["min_SSD_count"] = (stop_trials.SS_delay == MIN_SSD).sum() if len(stop_trials) > 0 else 0
+
+            # Commission rates (works for both tasks)
+            commission_rates = calc_commission_rate(subj_df, task)
+            row.update(commission_rates)
 
             # Motor stop specific: omission by trial type
             if task == "motorSelectiveStop":
