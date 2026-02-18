@@ -93,3 +93,23 @@ def run_qc_pipeline(
 
     # Summary
     summary = summarize_exclusions(exclusion_df)
+    print("\n" + "=" * 60)
+    print("Summary")
+    print("=" * 60)
+    print(f"  Total subjects: {len(qc_results) - 2}")  # Subtract mean/std rows
+    print(f"  Total exclusions: {summary.get('total_exclusions', 0)}")
+    print(f"  Subjects with exclusions: {summary.get('unique_subjects_with_exclusions', 0)}")
+
+    if "exclusions_by_task" in summary:
+        print("\n  By task:")
+        for task, count in summary["exclusions_by_task"].items():
+            print(f"    {task}: {count}")
+
+    print("\n" + "=" * 60)
+    print("Done!")
+    print("=" * 60)
+
+    return qc_results, exclusion_df
+
+if __name__ == "__main__":
+    run_qc_pipeline()
