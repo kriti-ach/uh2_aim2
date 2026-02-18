@@ -11,11 +11,12 @@ from config import (
     CONDITIONS,
     CONDITION_COLUMN,
     GO_TRIAL_TYPES,
-    MAX_RT_STOP_TASK,
+    MAX_GO_RT,
     MAX_SSD,
     MIN_SSD,
     NO_RESPONSE,
     STOP_TRIAL_TYPES,
+    SECONDS_TO_MILLISECONDS,
 )
 
 
@@ -57,7 +58,7 @@ def calc_ssrt(df: pd.DataFrame, task: str) -> float:
         return np.nan
 
     # Replace missing RTs with max
-    go_trials.loc[go_trials.response_time == NO_RESPONSE, "response_time"] = MAX_RT_STOP_TASK
+    go_trials.loc[go_trials.response_time * SECONDS_TO_MILLISECONDS == NO_RESPONSE, "response_time"] =  MAX_GO_RT 
     sorted_go = go_trials.response_time.sort_values()
 
     prob_stop_failure = 1 - stop_trials.stopped.mean()
@@ -156,12 +157,12 @@ def compute_rt_summary(df: pd.DataFrame, task: str) -> pd.DataFrame:
         row = {"worker_id": subj}
 
         for cond in conditions:
-            cond_rt = subj_df[subj_df[cond_col] == cond].response_time.mean()
+            cond_rt = subj_df[subj_df[cond_col] == cond].response_time.mean() * SECONDS_TO_MILLISECONDS
             row[f"{cond}_rt"] = cond_rt
 
         # Add mean SSD for stop tasks
         if task in STOP_TRIAL_TYPES:
-            row["mean_SSD"] = subj_df.SS_delay.mean()
+            row["mean_SSD"] = subj_df.SS_delay.mean() * SECONDS_TO_MILLISECONDS
 
         results.append(row)
 
@@ -202,9 +203,9 @@ def _compute_standard_acc(df: pd.DataFrame, task: str) -> pd.DataFrame:
 
             row["stop_success_rate"] = calc_stop_success_rate(subj_df, task)
             row["SSRT"] = calc_ssrt(subj_df, task)
-            row["mean_SSD"] = stop_trials.SS_delay.mean() if len(stop_trials) > 0 else np.nan
-            row["max_SSD_count"] = (stop_trials.SS_delay == MAX_SSD).sum() if len(stop_trials) > 0 else 0
-            row["min_SSD_count"] = (stop_trials.SS_delay == MIN_SSD).sum() if len(stop_trials) > 0 else 0
+            row["mean_SSD"] = (stop_trials.SS_delay.mean() * SECONDS_TO_MILLISECONDS) if len(stop_trials) > 0 else np.nan
+            row["max_SSD_count"] = (stop_trials.SS_delay * SECONDS_TO_MILLISECONDS == MAX_SSD).sum() if len(stop_trials) > 0 else 0
+            row["min_SSD_count"] = (stop_trials.SS_delay * SECONDS_TO_MILLISECONDS == MIN_SSD).sum() if len(stop_trials) > 0 else 0
 
             # Motor stop specific: omission by trial type
             if task == "motorSelectiveStop":

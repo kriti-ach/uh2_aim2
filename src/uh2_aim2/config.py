@@ -32,6 +32,12 @@ CONDITION_COLUMN = {
 }
 
 # =============================================================================
+# UNIT CONVERSIONS
+# =============================================================================
+
+SECONDS_TO_MILLISECONDS = 1000
+
+# =============================================================================
 # DATA VALUES
 # =============================================================================
 NO_RESPONSE = -1
@@ -39,9 +45,9 @@ NO_RESPONSE = -1
 # =============================================================================
 # STOP TASK PARAMETERS
 # =============================================================================
-MAX_SSD = 1.0
+MAX_SSD = 1000
 MIN_SSD = 0.0
-MAX_RT_STOP_TASK = 2.25
+MAX_GO_RT = 2000
 
 # Stop trial types by task
 STOP_TRIAL_TYPES = {
@@ -74,12 +80,14 @@ TRUNCATION_OMISSION_RATE = 0.50
 # Stop success rate bounds
 STOP_SUCCESS_MIN = 0.25
 STOP_SUCCESS_MAX = 0.75
+STOP_SIGNAL_GO_ACC = 0.55
+STOP_SIGNAL_GO_RT = 850
 
 # Motor selective stop: noncrit signal omission threshold
 MOTOR_STOP_NONCRIT_OMISSION_MAX = 0.35
 
 # Data quality thresholds
-OMISSION_RATE_MAX = 0.50
+OMISSION_RATE_MAX = 0.25
 TRUNCATION_RATE_MAX = 0.50
 
 # Minimum valid tasks required (exclude all if fewer)
@@ -98,9 +106,9 @@ MANIP_RESPONSE_MAX = 5
 # =============================================================================
 SUBJECTIVE_EXCLUSIONS = [
     {"subject_id": 1046, "task": "motorSelectiveStop", "reason": "poor_performance_subjective_rating"},
-    {"subject_id": "s1399", "task": "discountFix", "reason": "poor_performance_subjective_rating"},
-    {"subject_id": "s4592", "task": "discountFix", "reason": "poor_performance_subjective_rating"},
+    {"subject_id": 1399, "task": "discountFix", "reason": "poor_performance_subjective_rating"},
+    {"subject_id": 4592, "task": "discountFix", "reason": "poor_performance_subjective_rating"},
     {"subject_id": 5387, "task": "discountFix", "reason": "poor_performance_subjective_rating"},
-    {"subject_id": "s1211", "task": "stopSignal", "reason": "poor_performance_subjective_rating"},
-    {"subject_id": "s1211", "task": "motorSelectiveStop", "reason": "poor_performance_subjective_rating"},
+    {"subject_id": 1211, "task": "stopSignal", "reason": "poor_performance_subjective_rating"},
+    {"subject_id": 1211, "task": "motorSelectiveStop", "reason": "poor_performance_subjective_rating"},
 ]

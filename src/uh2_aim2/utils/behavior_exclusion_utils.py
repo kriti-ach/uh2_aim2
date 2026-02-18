@@ -20,6 +20,8 @@ from config import (
     SUBJECTIVE_EXCLUSIONS,
     TASKS,
     TRUNCATION_RATE_MAX,
+    STOP_SIGNAL_GO_ACC,
+    STOP_SIGNAL_GO_RT,
 )
 
 
@@ -60,6 +62,52 @@ def check_stop_success_rate(qc_df: pd.DataFrame) -> pd.DataFrame:
 
     return pd.DataFrame(exclusions)
 
+
+def check_stop_signal_go_accuracy(qc_df: pd.DataFrame) -> pd.DataFrame:
+    """Check stop signal go accuracy is within acceptable bounds."""
+    exclusions = []
+
+    for task in ["stopSignal", "motorSelectiveStop"]:
+        col = f"{task}_go_accuracy"
+        if col not in qc_df.columns:
+            continue
+
+        mask = ~qc_df.index.isin(["mean", "std"])
+        data = qc_df.loc[mask, col].dropna()
+
+        for subj, val in data[data < STOP_SIGNAL_GO_ACC].items():
+            exclusions.append({
+                "subject_id": subj,
+                "task": task,
+                "metric": "go_accuracy",
+                "metric_value": val,
+                "threshold": f"< {STOP_SIGNAL_GO_ACC}",
+            })
+
+    return pd.DataFrame(exclusions)
+
+def check_stop_signal_go_rt(qc_df: pd.DataFrame) -> pd.DataFrame:
+    """Check stop signal go RT is within acceptable bounds."""
+    exclusions = []
+
+    for task in ["stopSignal", "motorSelectiveStop"]:
+        col = f"{task}_go_rt"
+        if col not in qc_df.columns:
+            continue
+
+        mask = ~qc_df.index.isin(["mean", "std"])
+        data = qc_df.loc[mask, col].dropna()
+
+        for subj, val in data[data > STOP_SIGNAL_GO_RT].items():
+            exclusions.append({
+                "subject_id": subj,
+                "task": task,
+                "metric": "go_rt",
+                "metric_value": val,
+                "threshold": f"> {STOP_SIGNAL_GO_RT}",
+            })
+            
+    return pd.DataFrame(exclusions)
 
 def check_motor_stop_noncrit_omission(qc_df: pd.DataFrame) -> pd.DataFrame:
     """Check motor selective stop noncrit signal omission rate."""

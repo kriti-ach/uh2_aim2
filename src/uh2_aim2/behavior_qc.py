@@ -22,6 +22,7 @@ from utils.behavior_exclusion_utils import (
     run_all_exclusion_checks,
     summarize_exclusions,
 )
+from utils.behavior_flagging_utils import run_all_flagging_checks
 from utils.behavior_qc_utils import compute_qc_summary
 
 
@@ -43,12 +44,15 @@ def load_task_data(event_files_path: str = EVENT_FILES_PATH) -> dict[str, pd.Dat
 def run_qc_pipeline(
     event_files_path: str = EVENT_FILES_PATH,
     output_path: str = BEHAVIOR_QC_PATH,
-) -> tuple[dict[str, pd.DataFrame], pd.DataFrame]:
+) -> tuple[dict[str, pd.DataFrame], pd.DataFrame, pd.DataFrame]:
     """
     Run the complete behavioral QC pipeline.
 
     Returns:
-        Tuple of (qc_dict, exclusion_df) where qc_dict maps task -> QC DataFrame
+        Tuple of (qc_dict, exclusion_df, flags_df) where:
+            - qc_dict maps task -> QC DataFrame
+            - exclusion_df contains exclusion criteria violations
+            - flags_df contains warnings/flags
     """
     Path(output_path).mkdir(parents=True, exist_ok=True)
 
@@ -57,24 +61,29 @@ def run_qc_pipeline(
     print("=" * 60)
 
     # Load data
-    print("\n[1/3] Loading data...")
+    print("\n[1/4] Loading data...")
     task_data = load_task_data(event_files_path)
 
     # Compute QC metrics (both RT and accuracy)
-    print("\n[2/3] Computing QC metrics...")
+    print("\n[2/4] Computing QC metrics...")
     qc_results = {}
     for task, df in task_data.items():
         print(f"  Processing {task}...")
         qc_results[task] = compute_qc_summary(df, task)
 
-    # Run exclusion checks (using the last two rows which are NOT mean/std)
-    print("\n[3/3] Running exclusion checks...")
-    # Combine all QC data for exclusion checks (exclude mean/std rows)
+    # Combine all QC data for exclusion/flagging checks (exclude mean/std rows)
     all_qc_data = pd.concat([
         df.iloc[:-2].add_prefix(f"{task}_") 
         for task, df in qc_results.items()
     ], axis=1)
+
+    # Run exclusion checks
+    print("\n[3/4] Running exclusion checks...")
     exclusion_df = run_all_exclusion_checks(all_qc_data)
+
+    # Run flagging checks
+    print("\n[4/4] Running flagging checks...")
+    flags_df = run_all_flagging_checks(all_qc_data)
 
     # Save outputs
     print("\n" + "=" * 60)
@@ -91,25 +100,40 @@ def run_qc_pipeline(
     exclusion_df.to_csv(os.path.join(output_path, "exclusions.csv"), index=False)
     print("  exclusions.csv")
 
+    # Flags
+    flags_df.to_csv(os.path.join(output_path, "flags.csv"), index=False)
+    print("  flags.csv")
+
     # Summary
     summary = summarize_exclusions(exclusion_df)
     print("\n" + "=" * 60)
     print("Summary")
     print("=" * 60)
-    print(f"  Total subjects: {len(qc_results) - 2}")  # Subtract mean/std rows
+    
+    # Count subjects properly (first QC result, excluding mean/std)
+    first_task_qc = next(iter(qc_results.values()))
+    num_subjects = len(first_task_qc) - 2  # Subtract mean/std rows
+    
+    print(f"  Total subjects: {num_subjects}")
     print(f"  Total exclusions: {summary.get('total_exclusions', 0)}")
     print(f"  Subjects with exclusions: {summary.get('unique_subjects_with_exclusions', 0)}")
+    print(f"  Total flags: {len(flags_df)}")
+    print(f"  Subjects with flags: {flags_df['subject_id'].nunique() if not flags_df.empty else 0}")
 
     if "exclusions_by_task" in summary:
-        print("\n  By task:")
+        print("\n  Exclusions by task:")
         for task, count in summary["exclusions_by_task"].items():
+            print(f"    {task}: {count}")
+
+    if not flags_df.empty:
+        print("\n  Flags by task:")
+        for task, count in flags_df.groupby("task").size().items():
             print(f"    {task}: {count}")
 
     print("\n" + "=" * 60)
     print("Done!")
     print("=" * 60)
 
-    return qc_results, exclusion_df
-
+    return qc_results, exclusion_df, flags_df
 if __name__ == "__main__":
     run_qc_pipeline()
