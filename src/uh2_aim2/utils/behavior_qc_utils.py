@@ -1,0 +1,267 @@
+"""Utility functions for behavioral QC calculations using vectorized pandas operations."""
+
+from math import ceil, floor
+
+import numpy as np
+import pandas as pd
+import statsmodels.api as sm
+import statsmodels.formula.api as smf
+
+from config import (
+    CONDITIONS,
+    CONDITION_COLUMN,
+    GO_TRIAL_TYPES,
+    MAX_RT_STOP_TASK,
+    MAX_SSD,
+    MIN_SSD,
+    NO_RESPONSE,
+    STOP_TRIAL_TYPES,
+)
+
+
+# =============================================================================
+# CORE METRIC CALCULATIONS
+# =============================================================================
+
+
+def calc_omission_rate(df: pd.DataFrame, task: str) -> float:
+    """Calculate omission (non-response) rate for a task."""
+    if df.empty:
+        return 1.0
+
+    task_map = {
+        "stopSignal": lambda d: d[d.trial_type == "go"],
+        "motorSelectiveStop": lambda d: d[d.trial_type.isin(GO_TRIAL_TYPES["motorSelectiveStop"])],
+        "manipulationTask": lambda d: d[(d.trial_id == "current_rating") & (d.trial_type != "no_stim")],
+    }
+
+    trials = task_map.get(task, lambda d: d)(df)
+    if len(trials) == 0:
+        return np.nan
+
+    return (trials.key_press == NO_RESPONSE).mean()
+
+
+def calc_ssrt(df: pd.DataFrame, task: str) -> float:
+    """Calculate Stop Signal Reaction Time using integration method."""
+    if task not in STOP_TRIAL_TYPES:
+        return np.nan
+
+    stop_types = STOP_TRIAL_TYPES[task]
+    go_type = "go" if task == "stopSignal" else "crit_go"
+
+    go_trials = df[df.trial_type == go_type].copy()
+    stop_trials = df[df.trial_type.isin([stop_types["success"], stop_types["failure"]])]
+
+    if len(go_trials) == 0 or len(stop_trials) == 0:
+        return np.nan
+
+    # Replace missing RTs with max
+    go_trials.loc[go_trials.response_time == NO_RESPONSE, "response_time"] = MAX_RT_STOP_TASK
+    sorted_go = go_trials.response_time.sort_values()
+
+    prob_stop_failure = 1 - stop_trials.stopped.mean()
+    nth = prob_stop_failure * (len(sorted_go) - 1)
+    nth_rt = sorted_go.iloc[[floor(nth), ceil(nth)]].mean()
+
+    return nth_rt - stop_trials.SS_delay.mean()
+
+
+def calc_stop_success_rate(df: pd.DataFrame, task: str) -> float:
+    """Calculate stop success rate for stop tasks."""
+    if task not in STOP_TRIAL_TYPES:
+        return np.nan
+
+    stop_types = STOP_TRIAL_TYPES[task]
+    stop_trials = df[df.trial_type.isin([stop_types["success"], stop_types["failure"]])]
+
+    if len(stop_trials) == 0:
+        return np.nan
+
+    return (stop_trials.trial_type == stop_types["success"]).mean()
+
+
+def calc_discount_rate_glm(df: pd.DataFrame) -> tuple[float, float]:
+    """Calculate hyperbolic discount rate using GLM."""
+    data = df.copy()
+
+    # Create binary choice variable
+    data["patient"] = np.where(
+        data.choice == "larger_later", 1,
+        np.where(data.choice == "smaller_sooner", 0, np.nan)
+    )
+    data = data.dropna(subset=["patient"])
+
+    if len(data) == 0:
+        return np.nan, np.nan
+
+    # Calculate indifference k
+    data["indiff_k"] = (
+        (data.large_amount.astype(float) - data.small_amount.astype(float)) /
+        (data.small_amount.astype(float) * data.later_delay.astype(float))
+    )
+
+    # Handle edge cases
+    unique_choices = set(data.patient)
+    if unique_choices == {0.0}:
+        return data.indiff_k.max(), np.nan
+    if unique_choices == {1.0}:
+        return data.indiff_k.min(), np.nan
+
+    try:
+        model = smf.glm("patient ~ indiff_k", data=data, family=sm.families.Binomial()).fit()
+        k = -model.params[0] / model.params[1]
+        r2 = 1 - (model.llf / model.llnull)
+        return k, r2
+    except Exception:
+        return np.nan, np.nan
+
+
+# =============================================================================
+# QC SUMMARY FUNCTIONS
+# =============================================================================
+
+
+def compute_rt_summary(df: pd.DataFrame, task: str) -> pd.DataFrame:
+    """Compute RT summary statistics by subject for a task."""
+    conditions = CONDITIONS.get(task, df.trial_type.unique().tolist())
+    cond_col = CONDITION_COLUMN.get(task, "trial_type")
+
+    # Group by subject and condition, compute mean RT
+    results = []
+    for subj in df.worker_id.unique():
+        subj_df = df[df.worker_id == subj]
+        row = {"worker_id": subj}
+
+        for cond in conditions:
+            cond_rt = subj_df[subj_df[cond_col] == cond].response_time.mean()
+            row[f"{cond}_rt"] = cond_rt
+
+        # Add mean SSD for stop tasks
+        if task in STOP_TRIAL_TYPES:
+            row["mean_SSD"] = subj_df.SS_delay.mean()
+
+        results.append(row)
+
+    return pd.DataFrame(results).set_index("worker_id")
+
+
+def compute_acc_summary(df: pd.DataFrame, task: str) -> pd.DataFrame:
+    """Compute accuracy summary statistics by subject for a task."""
+    # Use task-specific functions
+    if task == "discountFix":
+        return _compute_discount_acc(df)
+    if task == "manipulationTask":
+        return _compute_manip_acc(df)
+
+    return _compute_standard_acc(df, task)
+
+
+def _compute_standard_acc(df: pd.DataFrame, task: str) -> pd.DataFrame:
+    """Compute accuracy for standard tasks (stop signal, motor stop)."""
+    conditions = CONDITIONS.get(task, [])
+    cond_col = CONDITION_COLUMN.get(task, "trial_type")
+
+    results = []
+    for subj in df.worker_id.unique():
+        subj_df = df[df.worker_id == subj]
+        row = {"worker_id": subj}
+
+        # Accuracy by condition
+        for cond in conditions:
+            cond_df = subj_df[subj_df[cond_col] == cond]
+            row[f"{cond}_acc"] = cond_df.correct.mean() if len(cond_df) > 0 else np.nan
+
+        # Stop task specific metrics
+        if task in STOP_TRIAL_TYPES:
+            stop_types = STOP_TRIAL_TYPES[task]
+            stop_trials = subj_df[subj_df.trial_type.isin([stop_types["success"], stop_types["failure"]])]
+
+            row["stop_success_rate"] = calc_stop_success_rate(subj_df, task)
+            row["SSRT"] = calc_ssrt(subj_df, task)
+            row["mean_SSD"] = stop_trials.SS_delay.mean() if len(stop_trials) > 0 else np.nan
+            row["max_SSD_count"] = (stop_trials.SS_delay == MAX_SSD).sum() if len(stop_trials) > 0 else 0
+            row["min_SSD_count"] = (stop_trials.SS_delay == MIN_SSD).sum() if len(stop_trials) > 0 else 0
+
+            # Motor stop specific: omission by trial type
+            if task == "motorSelectiveStop":
+                for tt in ["noncrit_signal", "noncrit_nosignal", "crit_go"]:
+                    tt_df = subj_df[subj_df.trial_type == tt]
+                    row[f"{tt}_omission"] = (tt_df.key_press == NO_RESPONSE).mean() if len(tt_df) > 0 else np.nan
+
+        row["omission_rate"] = calc_omission_rate(subj_df, task)
+        results.append(row)
+
+    return pd.DataFrame(results).set_index("worker_id")
+
+
+def _compute_discount_acc(df: pd.DataFrame) -> pd.DataFrame:
+    """Compute accuracy metrics for discount task."""
+    results = []
+    for subj in df.worker_id.unique():
+        subj_df = df[df.worker_id == subj]
+
+        larger_later_pct = (subj_df.choice == "larger_later").mean()
+        k, r2 = calc_discount_rate_glm(subj_df)
+
+        results.append({
+            "worker_id": subj,
+            "larger_later_pct": larger_later_pct,
+            "hyp_discount_rate_glm": k,
+            "pseudo_rsquared": r2,
+            "omission_rate": calc_omission_rate(subj_df, "discountFix"),
+        })
+
+    return pd.DataFrame(results).set_index("worker_id")
+
+
+def _compute_manip_acc(df: pd.DataFrame) -> pd.DataFrame:
+    """Compute accuracy metrics for manipulation task."""
+    trial_types = CONDITIONS["manipulationTask"]
+
+    results = []
+    for subj in df.worker_id.unique():
+        subj_df = df[df.worker_id == subj]
+        rating_df = subj_df[(subj_df.trial_id == "current_rating") & (subj_df.trial_type != "no_stim")]
+
+        row = {"worker_id": subj}
+
+        for tt in trial_types:
+            tt_df = rating_df[rating_df.trial_type == tt]
+            row[f"{tt}_avg"] = tt_df.response.mean() if len(tt_df) > 0 else np.nan
+
+            # Response distribution
+            if len(tt_df) > 0:
+                for resp in range(1, 6):
+                    row[f"{tt}_{resp}"] = (tt_df.response == resp).mean()
+
+        row["omission_rate"] = calc_omission_rate(subj_df, "manipulationTask")
+        results.append(row)
+
+    return pd.DataFrame(results).set_index("worker_id")
+
+
+# =============================================================================
+# DATA FORMATTING
+# =============================================================================
+
+
+def format_qc_results(qc_dict: dict[str, pd.DataFrame], add_summary_stats: bool = True) -> pd.DataFrame:
+    """Combine QC results from multiple tasks into a single DataFrame."""
+    dfs = []
+    for task, task_df in qc_dict.items():
+        # Prefix columns with task name
+        renamed = task_df.add_prefix(f"{task}_")
+        dfs.append(renamed)
+
+    combined = pd.concat(dfs, axis=1)
+
+    if add_summary_stats:
+        # Add mean and std rows
+        summary = pd.DataFrame({
+            col: [combined[col].mean(), combined[col].std()]
+            for col in combined.columns
+        }, index=["mean", "std"])
+        combined = pd.concat([summary, combined])
+
+    return combined
