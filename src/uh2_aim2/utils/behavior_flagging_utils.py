@@ -14,11 +14,11 @@ def check_stop_failure_rt_greater_than_go_rt(qc_df: pd.DataFrame) -> pd.DataFram
     for task in ["stopSignal", "motorSelectiveStop"]:
         # Define column names based on task
         if task == "stopSignal":
-            stop_failure_rt_col = "stop_failure_rt"
-            go_rt_col = "go_rt"
+            stop_failure_rt_col = f"{task}_stop_failure_rt"
+            go_rt_col = f"{task}_go_rt"
         else:  # motorSelectiveStop
-            stop_failure_rt_col = "crit_stop_failure_rt"
-            go_rt_col = "crit_go_rt"
+            stop_failure_rt_col = f"{task}_crit_stop_failure_rt"
+            go_rt_col = f"{task}_crit_go_rt"
 
         # Check if columns exist
         if stop_failure_rt_col not in qc_df.columns or go_rt_col not in qc_df.columns:
