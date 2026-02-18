@@ -121,9 +121,11 @@ def calc_discount_rate_glm(df: pd.DataFrame) -> tuple[float, float]:
 # QC SUMMARY FUNCTIONS
 # =============================================================================
 
-def standardize_subject_numbers(subj: str) -> str:
+def standardize_subject_numbers(subj: str | int) -> int:
     """Standardize subject numbers to remove the "s" prefix."""
-    return subj.replace("s", "")
+    if isinstance(subj, str) and subj.startswith("s"):
+        return int(subj.replace("s", ""))
+    return int(subj)
 
 
 def compute_qc_summary(df: pd.DataFrame, task: str) -> pd.DataFrame:
