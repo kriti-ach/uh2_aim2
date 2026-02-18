@@ -105,7 +105,7 @@ def calc_ssrt(df: pd.DataFrame, task: str) -> float:
     nth = prob_stop_failure * (len(sorted_go) - 1)
     nth_rt = sorted_go.iloc[[floor(nth), ceil(nth)]].mean()
 
-    return nth_rt - stop_trials.SS_delay.mean() * SECONDS_TO_MILLISECONDS
+    return (nth_rt - stop_trials.SS_delay.mean()) * SECONDS_TO_MILLISECONDS
 
 
 def calc_stop_success_rate(df: pd.DataFrame, task: str) -> float:
