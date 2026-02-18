@@ -13,16 +13,16 @@ from pathlib import Path
 
 import pandas as pd
 
-from config import (
+from src.uh2_aim2.config import (
     BEHAVIOR_QC_PATH,
     EVENT_FILES_PATH,
     TASKS,
 )
-from uh2_aim2.utils.behavior_exclusion_utils import (
+from src.uh2_aim2.utils.behavior_exclusion_utils import (
     run_all_exclusion_checks,
     summarize_exclusions,
 )
-from uh2_aim2.utils.behavior_qc_utils import (
+from src.uh2_aim2.utils.behavior_qc_utils import (
     compute_acc_summary,
     compute_rt_summary,
     format_qc_results,
