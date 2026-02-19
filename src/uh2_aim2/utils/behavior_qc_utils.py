@@ -155,34 +155,48 @@ def calc_discount_rate_glm(df: pd.DataFrame) -> tuple[float, float]:
         return np.nan, np.nan
 
     try:
-        model = smf.glm("patient ~ indiff_k", data=data, family=sm.families.Binomial()).fit()
+        # Fit GLM with explicit settings to handle convergence issues
+        model = smf.glm(
+            "patient ~ indiff_k", 
+            data=data, 
+            family=sm.families.Binomial()
+        ).fit(maxiter=100, method='bfgs')
         
-        # Access by parameter NAME, not index
         intercept = model.params['Intercept']
         slope = model.params['indiff_k']
         
-        print(f"DEBUG GLM: intercept={intercept}, slope={slope}")
+        # Check if model converged
+        if not model.converged:
+            print(f"WARNING: GLM did not converge (larger_later_pct={data.patient.mean():.3f})")
+            return data.indiff_k.median(), np.nan
         
-        if slope == 0 or abs(slope) < 1e-10:
-            print(f"DEBUG: Slope is zero or too small: {slope}")
+        if abs(slope) < 1e-10:
+            print(f"WARNING: Slope near zero: {slope} (larger_later_pct={data.patient.mean():.3f})")
             return data.indiff_k.median(), np.nan
             
         k = -intercept / slope
         r2 = 1 - (model.llf / model.llnull)
         
-        print(f"DEBUG: Successfully calculated k={k}, r2={r2}")
+        # Sanity checks
+        if k < 0:
+            print(f"WARNING: Negative k={k} (larger_later_pct={data.patient.mean():.3f})")
+            return data.indiff_k.median(), np.nan
+            
+        if not np.isfinite(k):
+            print(f"WARNING: Infinite k (larger_later_pct={data.patient.mean():.3f})")
+            return data.indiff_k.median(), np.nan
         
-        if k < 0 or not np.isfinite(k):
-            print(f"DEBUG: Invalid k: {k}")
+        if k > 1000:  # Unreasonably high discount rate
+            print(f"WARNING: Extremely high k={k} (larger_later_pct={data.patient.mean():.3f})")
             return data.indiff_k.median(), np.nan
             
         return k, r2
         
-    except ZeroDivisionError:
-        print(f"DEBUG: ZeroDivisionError")
+    except (ZeroDivisionError, ValueError, np.linalg.LinAlgError) as e:
+        print(f"WARNING: GLM numerical error: {type(e).__name__} (larger_later_pct={data.patient.mean():.3f})")
         return data.indiff_k.median(), np.nan
     except Exception as e:
-        print(f"DEBUG: Exception: {type(e).__name__}: {e}")
+        print(f"WARNING: GLM unexpected error: {type(e).__name__}: {e} (larger_later_pct={data.patient.mean():.3f})")
         return data.indiff_k.median(), np.nan
 
 
@@ -304,8 +318,8 @@ def _compute_discount_acc(df: pd.DataFrame) -> pd.DataFrame:
         results.append({
             "worker_id": subj,
             "larger_later_pct": larger_later_pct,
-            "hyp_discount_rate_glm": k,
-            "pseudo_rsquared": r2,
+            "k_value": k,
+            "r2_value": r2,
             "omission_rate": calc_omission_rate(subj_df, "discountFix"),
         })
 
