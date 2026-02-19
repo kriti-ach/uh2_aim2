@@ -133,73 +133,65 @@ def calc_discount_rate_glm(df: pd.DataFrame) -> tuple[float, float]:
     data = data.dropna(subset=["patient"])
 
     if len(data) == 0:
-        print("DEBUG: No valid patient data")
         return np.nan, np.nan
 
-    # Calculate indifference k
     data["indiff_k"] = (
         (data.large_amount.astype(float) - data.small_amount.astype(float)) /
         (data.small_amount.astype(float) * data.later_delay.astype(float))
     )
-    # Add after calculating indiff_k
-    print(f"\n=== Choices by indiff_k bins ===")
-    data_sorted = data.sort_values('indiff_k')
-    # Split into quartiles
-    quartiles = pd.qcut(data_sorted['indiff_k'], q=4, duplicates='drop')
-    print(data_sorted.groupby(quartiles)['patient'].agg(['mean', 'count']))
     
-    # Remove infinite values
     data = data[np.isfinite(data.indiff_k)]
     
     if len(data) == 0:
-        print("DEBUG: No finite indiff_k values")
         return np.nan, np.nan
 
-    # Handle edge cases (all one choice)
     unique_choices = set(data.patient)
     if unique_choices == {0.0}:
-        print("DEBUG: All choices are smaller_sooner")
-        return data.indiff_k.max(), 0.0
+        return data.indiff_k.max(), np.nan
     if unique_choices == {1.0}:
-        print("DEBUG: All choices are larger_later")
-        return data.indiff_k.min(), 0.0
+        return data.indiff_k.min(), np.nan
 
-    # Check variance
     if data["indiff_k"].std() < 1e-10:
-        print(f"DEBUG: No variance in indiff_k (std={data['indiff_k'].std()})")
         return np.nan, np.nan
 
-    # DEBUG: Print data summary
-    print(f"DEBUG: n_trials={len(data)}, n_patient={data.patient.sum()}, n_impatient={len(data)-data.patient.sum()}")
-    print(f"DEBUG: indiff_k range: {data.indiff_k.min():.6f} to {data.indiff_k.max():.6f}")
-    print(f"DEBUG: indiff_k unique values: {data.indiff_k.nunique()}")
-
     try:
-        # Fit GLM
         model = smf.glm("patient ~ indiff_k", data=data, family=sm.families.Binomial()).fit()
         
-        print(f"DEBUG: GLM params - intercept={model.params[0]:.6f}, slope={model.params[1]:.6f}")
+        # DEBUG: Print actual parameter values
+        print(f"DEBUG GLM: intercept={model.params[0]}, slope={model.params[1]}")
+        print(f"DEBUG GLM: Types - intercept type={type(model.params[0])}, slope type={type(model.params[1])}")
+        print(f"DEBUG GLM: model.params = {model.params}")
         
-        # Check for valid coefficient
+        # The issue: when you do -model.params[0] / model.params[1]
+        # If params[1] is 0, you get ZeroDivisionError
+        
+        if model.params[1] == 0:
+            print("DEBUG: Slope is EXACTLY zero")
+            return data.indiff_k.median(), np.nan
+        
         if abs(model.params[1]) < 1e-10:
-            print(f"DEBUG: Coefficient too small ({model.params[1]})")
-            return data.indiff_k.median(), 0.0
+            print(f"DEBUG: Slope too small: {model.params[1]}")
+            return data.indiff_k.median(), np.nan
             
         k = -model.params[0] / model.params[1]
         r2 = 1 - (model.llf / model.llnull)
         
-        print(f"DEBUG: k={k:.6f}, r2={r2:.6f}")
+        print(f"DEBUG: Successfully calculated k={k}, r2={r2}")
         
-        # Sanity check
         if k < 0 or not np.isfinite(k):
-            print(f"DEBUG: Invalid k value ({k})")
-            return data.indiff_k.median(), 0.0
+            print(f"DEBUG: Invalid k: {k}")
+            return data.indiff_k.median(), np.nan
             
         return k, r2
         
+    except ZeroDivisionError as e:
+        print(f"DEBUG: ZeroDivisionError - params[0]={model.params[0]}, params[1]={model.params[1]}")
+        return data.indiff_k.median(), np.nan
     except Exception as e:
-        print(f"DEBUG: GLM exception: {e}")
-        return data.indiff_k.median(), 0.0
+        print(f"DEBUG: Other exception: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
+        return data.indiff_k.median(), np.nan
 
 
 # =============================================================================
