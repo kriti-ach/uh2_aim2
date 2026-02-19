@@ -157,23 +157,17 @@ def calc_discount_rate_glm(df: pd.DataFrame) -> tuple[float, float]:
     try:
         model = smf.glm("patient ~ indiff_k", data=data, family=sm.families.Binomial()).fit()
         
-        # DEBUG: Print actual parameter values
-        print(f"DEBUG GLM: intercept={model.params[0]}, slope={model.params[1]}")
-        print(f"DEBUG GLM: Types - intercept type={type(model.params[0])}, slope type={type(model.params[1])}")
-        print(f"DEBUG GLM: model.params = {model.params}")
+        # Access by parameter NAME, not index
+        intercept = model.params['Intercept']
+        slope = model.params['indiff_k']
         
-        # The issue: when you do -model.params[0] / model.params[1]
-        # If params[1] is 0, you get ZeroDivisionError
+        print(f"DEBUG GLM: intercept={intercept}, slope={slope}")
         
-        if model.params[1] == 0:
-            print("DEBUG: Slope is EXACTLY zero")
-            return data.indiff_k.median(), np.nan
-        
-        if abs(model.params[1]) < 1e-10:
-            print(f"DEBUG: Slope too small: {model.params[1]}")
+        if slope == 0 or abs(slope) < 1e-10:
+            print(f"DEBUG: Slope is zero or too small: {slope}")
             return data.indiff_k.median(), np.nan
             
-        k = -model.params[0] / model.params[1]
+        k = -intercept / slope
         r2 = 1 - (model.llf / model.llnull)
         
         print(f"DEBUG: Successfully calculated k={k}, r2={r2}")
@@ -184,13 +178,11 @@ def calc_discount_rate_glm(df: pd.DataFrame) -> tuple[float, float]:
             
         return k, r2
         
-    except ZeroDivisionError as e:
-        print(f"DEBUG: ZeroDivisionError - params[0]={model.params[0]}, params[1]={model.params[1]}")
+    except ZeroDivisionError:
+        print(f"DEBUG: ZeroDivisionError")
         return data.indiff_k.median(), np.nan
     except Exception as e:
-        print(f"DEBUG: Other exception: {type(e).__name__}: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"DEBUG: Exception: {type(e).__name__}: {e}")
         return data.indiff_k.median(), np.nan
 
 
