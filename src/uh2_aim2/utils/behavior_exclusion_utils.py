@@ -19,7 +19,6 @@ from config import (
     SUBJECT_DATA_PATH,
     SUBJECTIVE_EXCLUSIONS,
     TASKS,
-    TRUNCATION_RATE_MAX,
     STOP_SIGNAL_GO_ACC,
     STOP_SIGNAL_GO_RT,
 )
@@ -106,7 +105,7 @@ def check_stop_signal_go_rt(qc_df: pd.DataFrame) -> pd.DataFrame:
                 "metric_value": val,
                 "threshold": f"> {STOP_SIGNAL_GO_RT}",
             })
-            
+
     return pd.DataFrame(exclusions)
 
 def check_motor_stop_noncrit_omission(qc_df: pd.DataFrame) -> pd.DataFrame:
@@ -198,34 +197,13 @@ def check_omission_rate(qc_df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(exclusions)
 
 
-def check_truncation_rate(qc_df: pd.DataFrame) -> pd.DataFrame:
-    """Check truncation rate across all tasks."""
-    exclusions = []
-
-    for task in TASKS:
-        col = f"{task}_truncation_rate"
-        if col not in qc_df.columns:
-            continue
-
-        mask = ~qc_df.index.isin(["mean", "std"])
-        data = qc_df.loc[mask, col].dropna()
-
-        high = data[data > TRUNCATION_RATE_MAX]
-        for subj, val in high.items():
-            exclusions.append({
-                "subject_id": subj,
-                "task": task,
-                "metric": "truncation_rate",
-                "metric_value": val,
-                "threshold": f"> {TRUNCATION_RATE_MAX}",
-            })
-
-    return pd.DataFrame(exclusions)
-
-
 def check_missing_data(qc_df: pd.DataFrame) -> pd.DataFrame:
-    """Check for missing data (NaN values in key metrics)."""
-    exclusions = []
+    """
+    Check for missing data (NaN values in key metrics).
+    
+    Returns DataFrame with columns: subject_id, task
+    """
+    missing_data = []
 
     # Key metrics to check per task
     key_metrics = {
@@ -238,22 +216,25 @@ def check_missing_data(qc_df: pd.DataFrame) -> pd.DataFrame:
     mask = ~qc_df.index.isin(["mean", "std"])
 
     for task, metrics in key_metrics.items():
-        for metric in metrics:
-            col = f"{task}_{metric}"
-            if col not in qc_df.columns:
-                continue
-
-            missing = qc_df.loc[mask, col].isna()
-            for subj in missing[missing].index:
-                exclusions.append({
+        # Check if ANY of the key metrics for this task are missing
+        task_cols = [f"{task}_{metric}" for metric in metrics if f"{task}_{metric}" in qc_df.columns]
+        
+        if not task_cols:
+            continue
+        
+        # Find subjects with missing data in any key metric for this task
+        for subj in qc_df.loc[mask].index:
+            if any(pd.isna(qc_df.loc[subj, col]) for col in task_cols):
+                missing_data.append({
                     "subject_id": subj,
                     "task": task,
-                    "metric": metric,
-                    "metric_value": np.nan,
-                    "threshold": "missing",
                 })
 
-    return pd.DataFrame(exclusions)
+    # Remove duplicates (in case multiple metrics were missing for same subject/task)
+    if missing_data:
+        return pd.DataFrame(missing_data).drop_duplicates()
+    
+    return pd.DataFrame(columns=["subject_id", "task"])
 
 
 def check_manip_pre_rating(subjects: list, data_path: str = SUBJECT_DATA_PATH) -> pd.DataFrame:
@@ -343,7 +324,6 @@ def run_all_exclusion_checks(qc_df: pd.DataFrame) -> pd.DataFrame:
         check_motor_stop_noncrit_omission(qc_df),
         check_discount_choice_pattern(qc_df),
         check_omission_rate(qc_df),
-        check_truncation_rate(qc_df),
         check_missing_data(qc_df),
         check_manip_pre_rating(subjects),
     ]
