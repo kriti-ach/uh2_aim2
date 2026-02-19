@@ -154,52 +154,62 @@ def calc_discount_rate_glm(df: pd.DataFrame) -> tuple[float, float]:
     if data["indiff_k"].std() < 1e-10:
         return np.nan, np.nan
 
+    # DIAGNOSTIC: Check for separation
+    data_sorted = data.sort_values('indiff_k')
+    quartiles = pd.qcut(data_sorted['indiff_k'], q=4, duplicates='drop')
+    quartile_means = data_sorted.groupby(quartiles)['patient'].mean()
+    
+    # If any quartile is 0% or 100%, that's quasi-complete separation
+    has_separation = ((quartile_means == 0) | (quartile_means == 1)).any()
+
     try:
-        # Suppress warnings for cleaner output
         import warnings
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', category=RuntimeWarning)
             warnings.filterwarnings('ignore', message='Inverting hessian failed')
             
-            # Fit GLM
             model = smf.glm(
                 "patient ~ indiff_k", 
                 data=data, 
                 family=sm.families.Binomial()
             ).fit(maxiter=100, disp=False)
         
-        # Check if we got valid parameters
         if 'Intercept' not in model.params or 'indiff_k' not in model.params:
+            if has_separation:
+                print(f"DEBUG: Failed due to separation (larger_later_pct={data.patient.mean():.3f})")
             return data.indiff_k.median(), np.nan
             
         intercept = model.params['Intercept']
         slope = model.params['indiff_k']
         
-        # Check for numerical issues
         if not np.isfinite(intercept) or not np.isfinite(slope):
+            if has_separation:
+                print(f"DEBUG: Non-finite params due to separation (larger_later_pct={data.patient.mean():.3f})")
             return data.indiff_k.median(), np.nan
         
         if abs(slope) < 1e-10:
+            print(f"DEBUG: Slope near zero (larger_later_pct={data.patient.mean():.3f})")
             return data.indiff_k.median(), np.nan
             
         k = -intercept / slope
         
-        # Sanity checks on k
         if k < 0 or not np.isfinite(k) or k > 1000:
+            print(f"DEBUG: Invalid k={k} (larger_later_pct={data.patient.mean():.3f})")
             return data.indiff_k.median(), np.nan
         
-        # Calculate r2 (check if llf and llnull are valid)
+        # Calculate r2
         if hasattr(model, 'llf') and hasattr(model, 'llnull'):
             if np.isfinite(model.llf) and np.isfinite(model.llnull) and model.llnull != 0:
                 r2 = 1 - (model.llf / model.llnull)
                 if np.isfinite(r2) and 0 <= r2 <= 1:
                     return k, r2
         
-        # If r2 calculation failed but k is valid, return k with NaN r2
+        print(f"DEBUG: R² calculation failed (llf={model.llf if hasattr(model, 'llf') else 'N/A'}, larger_later_pct={data.patient.mean():.3f})")
         return k, np.nan
         
-    except Exception:
-        # Any error -> use median fallback
+    except Exception as e:
+        if has_separation:
+            print(f"DEBUG: Exception with separation: {type(e).__name__} (larger_later_pct={data.patient.mean():.3f})")
         return data.indiff_k.median(), np.nan
 
 
