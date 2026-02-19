@@ -108,6 +108,20 @@ def calc_ssrt(df: pd.DataFrame, task: str) -> float:
     return (nth_rt - stop_trials.SS_delay.mean()) * SECONDS_TO_MILLISECONDS
 
 
+def calc_stop_success_rate(df: pd.DataFrame, task: str) -> float:
+    """Calculate stop success rate for stop tasks."""
+    if task not in STOP_TRIAL_TYPES:
+        return np.nan
+
+    stop_types = STOP_TRIAL_TYPES[task]
+    stop_trials = df[df.trial_type.isin([stop_types["success"], stop_types["failure"]])]
+
+    if len(stop_trials) == 0:
+        return np.nan
+
+    return (stop_trials.trial_type == stop_types["success"]).mean()
+
+
 def calc_discount_rate_glm(df: pd.DataFrame) -> tuple[float, float]:
     """Calculate hyperbolic discount rate using GLM."""
     data = df.copy()
