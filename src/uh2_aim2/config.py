@@ -94,8 +94,8 @@ TRUNCATION_RATE_MAX = 0.50
 MIN_VALID_TASKS = 2
 
 # Discount task: proportion thresholds for exclusion
-DISCOUNT_PROPORTION_MIN = 0.0  # Exclusive - if exactly 0 or 1, exclude
-DISCOUNT_PROPORTION_MAX = 1.0
+MIN_LARGER_LATER_PROPORTION = 0.0  # Exclusive - if exactly 0 or 1, exclude
+MAX_LARGER_LATER_PROPORTION = 1.0
 
 # Manipulation task response values
 MANIP_RESPONSE_MIN = 1

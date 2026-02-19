@@ -125,22 +125,36 @@ def calc_stop_success_rate(df: pd.DataFrame, task: str) -> float:
 def calc_discount_rate_glm(df: pd.DataFrame) -> tuple[float, float]:
     """Calculate hyperbolic discount rate using GLM."""
     data = df.copy()
+    
+    # DEBUG: Print available columns
+    print(f"Available columns: {data.columns.tolist()}")
+    print(f"First few rows:\n{data.head()}")
+    print(f"Unique choice values: {data['choice'].unique() if 'choice' in data.columns else 'NO CHOICE COLUMN'}")
 
     # Create binary choice variable
     data["patient"] = np.where(
         data.choice == "larger_later", 1,
         np.where(data.choice == "smaller_sooner", 0, np.nan)
     )
+    
+    # DEBUG: Check how many valid choices
+    print(f"Valid choices: {data['patient'].notna().sum()} out of {len(data)}")
+    
     data = data.dropna(subset=["patient"])
 
     if len(data) == 0:
+        print("WARNING: No valid patient choices found!")
         return np.nan, np.nan
 
     # Calculate indifference k
-    data["indiff_k"] = (
-        (data.large_amount.astype(float) - data.small_amount.astype(float)) /
-        (data.small_amount.astype(float) * data.later_delay.astype(float))
-    )
+    try:
+        data["indiff_k"] = (
+            (data.large_amount.astype(float) - data.small_amount.astype(float)) /
+            (data.small_amount.astype(float) * data.later_delay.astype(float))
+        )
+    except Exception as e:
+        print(f"ERROR calculating indiff_k: {e}")
+        return np.nan, np.nan
 
     # Handle edge cases
     unique_choices = set(data.patient)
@@ -153,8 +167,10 @@ def calc_discount_rate_glm(df: pd.DataFrame) -> tuple[float, float]:
         model = smf.glm("patient ~ indiff_k", data=data, family=sm.families.Binomial()).fit()
         k = -model.params[0] / model.params[1]
         r2 = 1 - (model.llf / model.llnull)
+        print(f"SUCCESS: k={k}, r2={r2}")
         return k, r2
-    except Exception:
+    except Exception as e:
+        print(f"ERROR fitting GLM: {e}")
         return np.nan, np.nan
 
 

@@ -9,8 +9,8 @@ import numpy as np
 import pandas as pd
 
 from config import (
-    DISCOUNT_PROPORTION_MAX,
-    DISCOUNT_PROPORTION_MIN,
+    MAX_LARGER_LATER_PROPORTION,
+    MIN_LARGER_LATER_PROPORTION,
     MIN_VALID_TASKS,
     MOTOR_STOP_NONCRIT_OMISSION_MAX,
     OMISSION_RATE_MAX,
@@ -146,27 +146,27 @@ def check_discount_choice_pattern(qc_df: pd.DataFrame) -> pd.DataFrame:
 
     exclusions = []
     for subj in data.index:
-        ll_pct = data.loc[subj, col]
-        om_rate = data.loc[subj, omission_col] if omission_col in data.columns else 0
+        larger_later_pct = data.loc[subj, col]
+        omission_rate = data.loc[subj, omission_col] if omission_col in data.columns else 0
 
         # Check if only chose one option (accounting for omissions)
-        total_choice_pct = ll_pct + om_rate
+        total_choice_pct = larger_later_pct + omission_rate
 
-        if ll_pct == DISCOUNT_PROPORTION_MAX or total_choice_pct == DISCOUNT_PROPORTION_MAX:
+        if larger_later_pct == MAX_LARGER_LATER_PROPORTION or total_choice_pct == MAX_LARGER_LATER_PROPORTION:
             exclusions.append({
                 "subject_id": subj,
                 "task": "discountFix",
                 "metric": "larger_later_pct",
-                "metric_value": ll_pct,
-                "threshold": f"= {DISCOUNT_PROPORTION_MAX} (only larger_later)",
+                "metric_value": larger_later_pct,
+                "threshold": f"= {MAX_LARGER_LATER_PROPORTION} (only larger_later)",
             })
-        elif ll_pct == DISCOUNT_PROPORTION_MIN or total_choice_pct == DISCOUNT_PROPORTION_MIN:
+        elif larger_later_pct == MIN_LARGER_LATER_PROPORTION or total_choice_pct == MIN_LARGER_LATER_PROPORTION:
             exclusions.append({
                 "subject_id": subj,
                 "task": "discountFix",
                 "metric": "larger_later_pct",
-                "metric_value": ll_pct,
-                "threshold": f"= {DISCOUNT_PROPORTION_MIN} (only smaller_sooner)",
+                "metric_value": larger_later_pct,
+                "threshold": f"= {MIN_LARGER_LATER_PROPORTION} (only smaller_sooner)",
             })
 
     return pd.DataFrame(exclusions)
