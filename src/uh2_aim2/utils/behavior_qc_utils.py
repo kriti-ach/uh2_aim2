@@ -141,6 +141,12 @@ def calc_discount_rate_glm(df: pd.DataFrame) -> tuple[float, float]:
         (data.large_amount.astype(float) - data.small_amount.astype(float)) /
         (data.small_amount.astype(float) * data.later_delay.astype(float))
     )
+    # Add after calculating indiff_k
+    print(f"\n=== Choices by indiff_k bins ===")
+    data_sorted = data.sort_values('indiff_k')
+    # Split into quartiles
+    quartiles = pd.qcut(data_sorted['indiff_k'], q=4, duplicates='drop')
+    print(data_sorted.groupby(quartiles)['patient'].agg(['mean', 'count']))
     
     # Remove infinite values
     data = data[np.isfinite(data.indiff_k)]
