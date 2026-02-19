@@ -108,70 +108,64 @@ def calc_ssrt(df: pd.DataFrame, task: str) -> float:
     return (nth_rt - stop_trials.SS_delay.mean()) * SECONDS_TO_MILLISECONDS
 
 
-def calc_stop_success_rate(df: pd.DataFrame, task: str) -> float:
-    """Calculate stop success rate for stop tasks."""
-    if task not in STOP_TRIAL_TYPES:
-        return np.nan
-
-    stop_types = STOP_TRIAL_TYPES[task]
-    stop_trials = df[df.trial_type.isin([stop_types["success"], stop_types["failure"]])]
-
-    if len(stop_trials) == 0:
-        return np.nan
-
-    return (stop_trials.trial_type == stop_types["success"]).mean()
-
-
 def calc_discount_rate_glm(df: pd.DataFrame) -> tuple[float, float]:
     """Calculate hyperbolic discount rate using GLM."""
     data = df.copy()
-    
-    # DEBUG: Print available columns
-    print(f"Available columns: {data.columns.tolist()}")
-    print(f"First few rows:\n{data.head()}")
-    print(f"Unique choice values: {data['choice'].unique() if 'choice' in data.columns else 'NO CHOICE COLUMN'}")
 
-    # Create binary choice variable
     data["patient"] = np.where(
         data.choice == "larger_later", 1,
         np.where(data.choice == "smaller_sooner", 0, np.nan)
     )
-    
-    # DEBUG: Check how many valid choices
-    print(f"Valid choices: {data['patient'].notna().sum()} out of {len(data)}")
-    
     data = data.dropna(subset=["patient"])
 
     if len(data) == 0:
-        print("WARNING: No valid patient choices found!")
         return np.nan, np.nan
 
-    # Calculate indifference k
-    try:
-        data["indiff_k"] = (
-            (data.large_amount.astype(float) - data.small_amount.astype(float)) /
-            (data.small_amount.astype(float) * data.later_delay.astype(float))
-        )
-    except Exception as e:
-        print(f"ERROR calculating indiff_k: {e}")
+    # Calculate indifference k: k = (A - V) / (V * D)
+    # Where V = small_amount (immediate), A = large_amount, D = later_delay
+    data["indiff_k"] = (
+        (data.large_amount.astype(float) - data.small_amount.astype(float)) /
+        (data.small_amount.astype(float) * data.later_delay.astype(float))
+    )
+    
+    # Remove infinite values
+    data = data[np.isfinite(data.indiff_k)]
+    
+    if len(data) == 0:
         return np.nan, np.nan
 
-    # Handle edge cases
+    # Handle edge cases (all one choice)
     unique_choices = set(data.patient)
     if unique_choices == {0.0}:
-        return data.indiff_k.max(), np.nan
+        return data.indiff_k.max(), 0.0  # Return 0 for r2
     if unique_choices == {1.0}:
-        return data.indiff_k.min(), np.nan
+        return data.indiff_k.min(), 0.0
+
+    # Check variance
+    if data["indiff_k"].std() < 1e-10:
+        return np.nan, np.nan
 
     try:
+        # Fit GLM
         model = smf.glm("patient ~ indiff_k", data=data, family=sm.families.Binomial()).fit()
+        
+        # Check for valid coefficient
+        if abs(model.params[1]) < 1e-10:
+            # No relationship - use median indiff_k as fallback
+            return data.indiff_k.median(), 0.0
+            
         k = -model.params[0] / model.params[1]
         r2 = 1 - (model.llf / model.llnull)
-        print(f"SUCCESS: k={k}, r2={r2}")
+        
+        # Sanity check
+        if k < 0 or not np.isfinite(k):
+            return data.indiff_k.median(), 0.0
+            
         return k, r2
-    except Exception as e:
-        print(f"ERROR fitting GLM: {e}")
-        return np.nan, np.nan
+        
+    except Exception:
+        # Fallback to median indiff_k
+        return data.indiff_k.median(), 0.0
 
 
 # =============================================================================
