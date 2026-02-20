@@ -273,17 +273,29 @@ def check_minimum_valid_tasks(exclusion_df: pd.DataFrame, all_subjects: list, mi
     # Combine excluded tasks from both sources
     excluded_tasks_per_subject = {}
     
-    # Count from exclusion_df
+    # Count from exclusion_df (extract subject_id and task columns)
     if not exclusion_df.empty:
-        for subj, group in exclusion_df.groupby("subject_id"):
-            excluded_tasks_per_subject[subj] = set(group["task"].unique())
+        # Handle case where exclusion_df has multiple columns
+        if "subject_id" in exclusion_df.columns and "task" in exclusion_df.columns:
+            for subj, group in exclusion_df.groupby("subject_id"):
+                excluded_tasks_per_subject[subj] = set(group["task"].unique())
+        else:
+            print(f"WARNING: exclusion_df missing required columns. Has: {exclusion_df.columns.tolist()}")
     
-    # Add from missing_df
+    # Add from missing_df (extract subject_id and task columns)
     if not missing_df.empty:
-        for subj, group in missing_df.groupby("subject_id"):
-            if subj not in excluded_tasks_per_subject:
-                excluded_tasks_per_subject[subj] = set()
-            excluded_tasks_per_subject[subj].update(group["task"].unique())
+        # Handle case where missing_df has multiple columns
+        if "subject_id" in missing_df.columns and "task" in missing_df.columns:
+            for subj, group in missing_df.groupby("subject_id"):
+                if subj not in excluded_tasks_per_subject:
+                    excluded_tasks_per_subject[subj] = set()
+                excluded_tasks_per_subject[subj].update(group["task"].unique())
+        else:
+            print(f"WARNING: missing_df missing required columns. Has: {missing_df.columns.tolist()}")
+    
+    # If no valid data was found
+    if not excluded_tasks_per_subject:
+        return pd.DataFrame()
     
     # Count total excluded tasks per subject
     task_counts = {subj: len(tasks) for subj, tasks in excluded_tasks_per_subject.items()}
