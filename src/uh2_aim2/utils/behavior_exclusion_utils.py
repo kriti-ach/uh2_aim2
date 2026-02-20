@@ -11,7 +11,6 @@ import pandas as pd
 from config import (
     MAX_LARGER_LATER_PROPORTION,
     MIN_LARGER_LATER_PROPORTION,
-    MIN_VALID_TASKS,
     MOTOR_STOP_NONCRIT_OMISSION_MAX,
     OMISSION_RATE_MAX,
     STOP_SUCCESS_MAX,
@@ -265,36 +264,6 @@ def check_manip_pre_rating(subjects: list, data_path: str = SUBJECT_DATA_PATH) -
     return pd.DataFrame(exclusions)
 
 
-def check_minimum_valid_tasks(exclusion_df: pd.DataFrame, all_subjects: list) -> pd.DataFrame:
-    """Flag subjects with too many task exclusions."""
-    if exclusion_df.empty:
-        return pd.DataFrame()
-
-    # Count excluded tasks per subject
-    task_counts = exclusion_df.groupby("subject_id")["task"].nunique()
-
-    # Subjects with too few valid tasks
-    max_excluded = len(TASKS) - MIN_VALID_TASKS
-    flagged = task_counts[task_counts > max_excluded]
-
-    exclusions = []
-    for subj, n_excluded in flagged.items():
-        # Add exclusion for any remaining tasks
-        already_excluded = set(exclusion_df[exclusion_df.subject_id == subj]["task"])
-        remaining = set(TASKS) - already_excluded
-
-        for task in remaining:
-            exclusions.append({
-                "subject_id": subj,
-                "task": task,
-                "metric": "valid_task_count",
-                "metric_value": len(TASKS) - n_excluded,
-                "threshold": f"< {MIN_VALID_TASKS}",
-            })
-
-    return pd.DataFrame(exclusions)
-
-
 def get_subjective_exclusions() -> pd.DataFrame:
     """Convert subjective exclusions to DataFrame format."""
     return pd.DataFrame([
@@ -330,11 +299,6 @@ def run_all_exclusion_checks(qc_df: pd.DataFrame) -> pd.DataFrame:
 
     # Combine all exclusions
     exclusions = pd.concat([df for df in checks if not df.empty], ignore_index=True)
-
-    # Check minimum valid tasks (needs existing exclusions)
-    min_task_exclusions = check_minimum_valid_tasks(exclusions, subjects)
-    if not min_task_exclusions.empty:
-        exclusions = pd.concat([exclusions, min_task_exclusions], ignore_index=True)
 
     # Remove duplicates (same subject-task-metric)
     if not exclusions.empty:

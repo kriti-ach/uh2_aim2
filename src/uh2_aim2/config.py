@@ -90,9 +90,6 @@ MOTOR_STOP_NONCRIT_OMISSION_MAX = 0.35
 OMISSION_RATE_MAX = 0.25
 TRUNCATION_RATE_MAX = 0.50
 
-# Minimum valid tasks required (exclude all if fewer)
-MIN_VALID_TASKS = 2
-
 # Discount task: proportion thresholds for exclusion
 MIN_LARGER_LATER_PROPORTION = 0.0  # Exclusive - if exactly 0 or 1, exclude
 MAX_LARGER_LATER_PROPORTION = 1.0
