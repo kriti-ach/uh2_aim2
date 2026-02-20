@@ -293,7 +293,6 @@ def run_all_exclusion_checks(qc_df: pd.DataFrame) -> pd.DataFrame:
         check_motor_stop_noncrit_omission(qc_df),
         check_discount_choice_pattern(qc_df),
         check_omission_rate(qc_df),
-        check_missing_data(qc_df),
         check_manip_pre_rating(subjects),
     ]
 
