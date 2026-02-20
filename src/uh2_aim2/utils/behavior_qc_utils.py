@@ -176,7 +176,7 @@ def calc_discount_rate_glm(df: pd.DataFrame) -> tuple[float, float]:
         
         if 'Intercept' not in model.params or 'indiff_k' not in model.params:
             if has_separation:
-                print(f"DEBUG: Failed due to separation (larger_later_pct={data.patient.mean():.3f})")
+                print(f"DEBUG: Failed due to separation (larger_later_proportion={data.patient.mean():.3f})")
             return data.indiff_k.median(), np.nan
             
         intercept = model.params['Intercept']
@@ -184,17 +184,17 @@ def calc_discount_rate_glm(df: pd.DataFrame) -> tuple[float, float]:
         
         if not np.isfinite(intercept) or not np.isfinite(slope):
             if has_separation:
-                print(f"DEBUG: Non-finite params due to separation (larger_later_pct={data.patient.mean():.3f})")
+                print(f"DEBUG: Non-finite params due to separation (larger_later_proportion={data.patient.mean():.3f})")
             return data.indiff_k.median(), np.nan
         
         if abs(slope) < 1e-10:
-            print(f"DEBUG: Slope near zero (larger_later_pct={data.patient.mean():.3f})")
+            print(f"DEBUG: Slope near zero (larger_later_proportion={data.patient.mean():.3f})")
             return data.indiff_k.median(), np.nan
             
         k = -intercept / slope
         
         if k < 0 or not np.isfinite(k) or k > 1000:
-            print(f"DEBUG: Invalid k={k} (larger_later_pct={data.patient.mean():.3f})")
+            print(f"DEBUG: Invalid k={k} (larger_later_proportion={data.patient.mean():.3f})")
             return data.indiff_k.median(), np.nan
         
         # Calculate r2
@@ -204,12 +204,12 @@ def calc_discount_rate_glm(df: pd.DataFrame) -> tuple[float, float]:
                 if np.isfinite(r2) and 0 <= r2 <= 1:
                     return k, r2
         
-        print(f"DEBUG: R² calculation failed (llf={model.llf if hasattr(model, 'llf') else 'N/A'}, larger_later_pct={data.patient.mean():.3f})")
+        print(f"DEBUG: R² calculation failed (llf={model.llf if hasattr(model, 'llf') else 'N/A'}, larger_later_proportion={data.patient.mean():.3f})")
         return k, np.nan
         
     except Exception as e:
         if has_separation:
-            print(f"DEBUG: Exception with separation: {type(e).__name__} (larger_later_pct={data.patient.mean():.3f})")
+            print(f"DEBUG: Exception with separation: {type(e).__name__} (larger_later_proportion={data.patient.mean():.3f})")
         return data.indiff_k.median(), np.nan
 
 
@@ -325,12 +325,12 @@ def _compute_discount_acc(df: pd.DataFrame) -> pd.DataFrame:
         subj = standardize_subject_numbers(subj)
         subj_df = df[df.worker_id == f"s{subj}"] if f"s{subj}" in df.worker_id.values else df[df.worker_id == subj]
 
-        larger_later_pct = (subj_df.choice == "larger_later").mean()
+        larger_later_proportion = (subj_df.choice == "larger_later").mean()
         k, r2 = calc_discount_rate_glm(subj_df)
 
         results.append({
             "worker_id": subj,
-            "larger_later_pct": larger_later_pct,
+            "larger_later_proportion": larger_later_proportion,
             "k_value": k,
             "r2_value": r2,
             "omission_rate": calc_omission_rate(subj_df, "discountFix"),

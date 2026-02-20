@@ -134,7 +134,7 @@ def check_motor_stop_noncrit_omission(qc_df: pd.DataFrame) -> pd.DataFrame:
 
 def check_discount_choice_pattern(qc_df: pd.DataFrame) -> pd.DataFrame:
     """Check for extreme choice patterns in discount task."""
-    col = "discountFix_larger_later_pct"
+    col = "discountFix_larger_later_proportion"
     omission_col = "discountFix_omission_rate"
 
     if col not in qc_df.columns:
@@ -145,27 +145,27 @@ def check_discount_choice_pattern(qc_df: pd.DataFrame) -> pd.DataFrame:
 
     exclusions = []
     for subj in data.index:
-        larger_later_pct = data.loc[subj, col]
+        larger_later_proportion = data.loc[subj, col]
         omission_rate = data.loc[subj, omission_col] if omission_col in data.columns else 0
 
         # Check if only chose one option (accounting for omissions)
-        total_choice_pct = larger_later_pct + omission_rate
+        total_choice_proportion = larger_later_proportion + omission_rate
 
-        if larger_later_pct == MAX_LARGER_LATER_PROPORTION or total_choice_pct == MAX_LARGER_LATER_PROPORTION:
+        if larger_later_proportion == MAX_LARGER_LATER_PROPORTION or total_choice_proportion == MAX_LARGER_LATER_PROPORTION:
             exclusions.append({
                 "subject_id": subj,
                 "task": "discountFix",
-                "metric": "larger_later_pct",
-                "metric_value": larger_later_pct,
-                "threshold": f"= {MAX_LARGER_LATER_PROPORTION} (only larger_later)",
+                "metric": "larger_later_proportion",
+                "metric_value": larger_later_proportion,
+                "threshold": f"= {MAX_LARGER_LATER_PROPORTION} (only larger_later_proportion)",
             })
-        elif larger_later_pct == MIN_LARGER_LATER_PROPORTION or total_choice_pct == MIN_LARGER_LATER_PROPORTION:
+        elif larger_later_proportion == MIN_LARGER_LATER_PROPORTION or total_choice_proportion == MIN_LARGER_LATER_PROPORTION:
             exclusions.append({
                 "subject_id": subj,
                 "task": "discountFix",
-                "metric": "larger_later_pct",
-                "metric_value": larger_later_pct,
-                "threshold": f"= {MIN_LARGER_LATER_PROPORTION} (only smaller_sooner)",
+                "metric": "larger_later_proportion",
+                "metric_value": larger_later_proportion,
+                "threshold": f"= {MIN_LARGER_LATER_PROPORTION} (only smaller_sooner_proportion)",
             })
 
     return pd.DataFrame(exclusions)
@@ -208,7 +208,7 @@ def check_missing_data(qc_df: pd.DataFrame) -> pd.DataFrame:
     key_metrics = {
         "stopSignal": ["stop_success_rate", "SSRT"],
         "motorSelectiveStop": ["stop_success_rate", "SSRT"],
-        "discountFix": ["larger_later_pct", "hyp_discount_rate_glm"],
+        "discountFix": ["larger_later_proportion", "hyp_discount_rate_glm"],
         "manipulationTask": ["future_valence_avg", "present_valence_avg"],
     }
 
