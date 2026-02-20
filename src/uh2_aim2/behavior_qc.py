@@ -85,7 +85,7 @@ def run_qc_pipeline(
 
     # Run exclusion checks (WITHOUT missing data check)
     print("\n[4/5] Running exclusion checks...")
-    exclusion_df = run_all_exclusion_checks(all_qc_data, missing_df)
+    exclusion_df = run_all_exclusion_checks(all_qc_data)
 
     # Run flagging checks
     print("\n[5/5] Running flagging checks...")
