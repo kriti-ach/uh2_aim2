@@ -265,49 +265,22 @@ def check_manip_pre_rating(subjects: list, data_path: str = SUBJECT_DATA_PATH) -
     return pd.DataFrame(exclusions)
 
 
-def check_minimum_valid_tasks(exclusion_df: pd.DataFrame, all_subjects: list, missing_df: pd.DataFrame) -> pd.DataFrame:
-    """Flag subjects with too many task exclusions from exclusion_df and missing_df."""
-    if exclusion_df.empty and missing_df.empty:
+def check_minimum_valid_tasks(exclusion_df: pd.DataFrame, all_subjects: list) -> pd.DataFrame:
+    """Flag subjects with too many task exclusions."""
+    if exclusion_df.empty:
         return pd.DataFrame()
 
-    # Combine excluded tasks from both sources
-    excluded_tasks_per_subject = {}
-    
-    # Count from exclusion_df (extract subject_id and task columns)
-    if not exclusion_df.empty:
-        # Handle case where exclusion_df has multiple columns
-        if "subject_id" in exclusion_df.columns and "task" in exclusion_df.columns:
-            for subj, group in exclusion_df.groupby("subject_id"):
-                excluded_tasks_per_subject[subj] = set(group["task"].unique())
-        else:
-            print(f"WARNING: exclusion_df missing required columns. Has: {exclusion_df.columns.tolist()}")
-    
-    # Add from missing_df (extract subject_id and task columns)
-    if not missing_df.empty:
-        # Handle case where missing_df has multiple columns
-        if "subject_id" in missing_df.columns and "task" in missing_df.columns:
-            for subj, group in missing_df.groupby("subject_id"):
-                if subj not in excluded_tasks_per_subject:
-                    excluded_tasks_per_subject[subj] = set()
-                excluded_tasks_per_subject[subj].update(group["task"].unique())
-        else:
-            print(f"WARNING: missing_df missing required columns. Has: {missing_df.columns.tolist()}")
-    
-    # If no valid data was found
-    if not excluded_tasks_per_subject:
-        return pd.DataFrame()
-    
-    # Count total excluded tasks per subject
-    task_counts = {subj: len(tasks) for subj, tasks in excluded_tasks_per_subject.items()}
-    
+    # Count excluded tasks per subject
+    task_counts = exclusion_df.groupby("subject_id")["task"].nunique()
+
     # Subjects with too few valid tasks
     max_excluded = len(TASKS) - MIN_VALID_TASKS
-    flagged = {subj: n_excluded for subj, n_excluded in task_counts.items() if n_excluded > max_excluded}
+    flagged = task_counts[task_counts > max_excluded]
 
     exclusions = []
     for subj, n_excluded in flagged.items():
-        # Get all already excluded tasks from both sources
-        already_excluded = excluded_tasks_per_subject[subj]
+        # Add exclusion for any remaining tasks
+        already_excluded = set(exclusion_df[exclusion_df.subject_id == subj]["task"])
         remaining = set(TASKS) - already_excluded
 
         for task in remaining:
@@ -336,7 +309,7 @@ def get_subjective_exclusions() -> pd.DataFrame:
     ])
 
 
-def run_all_exclusion_checks(qc_df: pd.DataFrame, missing_df: pd.DataFrame) -> pd.DataFrame:
+def run_all_exclusion_checks(qc_df: pd.DataFrame) -> pd.DataFrame:
     """Run all exclusion checks and return consolidated exclusion DataFrame.
 
     Returns DataFrame with columns: subject_id, task, metric, metric_value, threshold
@@ -351,6 +324,7 @@ def run_all_exclusion_checks(qc_df: pd.DataFrame, missing_df: pd.DataFrame) -> p
         check_motor_stop_noncrit_omission(qc_df),
         check_discount_choice_pattern(qc_df),
         check_omission_rate(qc_df),
+        check_missing_data(qc_df),
         check_manip_pre_rating(subjects),
     ]
 
@@ -358,7 +332,7 @@ def run_all_exclusion_checks(qc_df: pd.DataFrame, missing_df: pd.DataFrame) -> p
     exclusions = pd.concat([df for df in checks if not df.empty], ignore_index=True)
 
     # Check minimum valid tasks (needs existing exclusions)
-    min_task_exclusions = check_minimum_valid_tasks(exclusions, subjects, missing_df)
+    min_task_exclusions = check_minimum_valid_tasks(exclusions, subjects)
     if not min_task_exclusions.empty:
         exclusions = pd.concat([exclusions, min_task_exclusions], ignore_index=True)
 
