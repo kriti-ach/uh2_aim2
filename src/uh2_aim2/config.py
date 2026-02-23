@@ -99,6 +99,39 @@ MANIP_RESPONSE_MIN = 1
 MANIP_RESPONSE_MAX = 5
 
 # =============================================================================
+# HISTOGRAM PLOT SPECS
+# Each entry: column name in the per-task QC DataFrame, or a tuple
+# (col_a, col_b) meaning "col_a minus col_b" (computed difference).
+# =============================================================================
+HISTOGRAM_METRICS = {
+    "stopSignal": [
+        ("go_acc", "Go Accuracy"),
+        ("go_rt", "Go RT (ms)"),
+        ("omission_rate", "Omission Rate"),
+        ("stop_success_rate", "Stop Success Rate"),
+        (("stop_failure_rt", "go_rt"), "Stop Failure RT − Go RT (ms)"),
+    ],
+    "motorSelectiveStop": [
+        ("crit_go_acc", "Crit Go Accuracy"),
+        ("crit_go_rt", "Crit Go RT (ms)"),
+        ("noncrit_signal_rt", "Noncrit Signal RT (ms)"),
+        ("noncrit_nosignal_rt", "Noncrit Nosignal RT (ms)"),
+        ("omission_rate", "Omission Rate"),
+        ("crit_go_omission", "Crit Go Omission"),
+        ("noncrit_nosignal_omission", "Noncrit Nosignal Omission"),
+        ("noncrit_signal_omission", "Noncrit Signal Omission"),
+        ("stop_success_rate", "Stop Success Rate"),
+        (("crit_stop_failure_rt", "crit_go_rt"), "Crit Stop Failure RT − Crit Go RT (ms)"),
+        (("crit_go_rt", "noncrit_nosignal_rt"), "Crit Go RT − Noncrit Nosignal RT (ms)"),
+    ],
+    "manipulationTask": [
+        ("omission_rate", "Omission Rate"),
+    ],
+}
+
+HISTOGRAM_BINS = 20
+
+# =============================================================================
 # SUBJECTIVE EXCLUSIONS (manual review)
 # =============================================================================
 SUBJECTIVE_EXCLUSIONS = [

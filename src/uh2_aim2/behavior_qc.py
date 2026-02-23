@@ -24,6 +24,7 @@ from utils.behavior_exclusion_utils import (
     check_missing_data,
 )
 from utils.behavior_flagging_utils import run_all_flagging_checks
+from utils.behavior_plot_utils import plot_all_task_histograms
 from utils.behavior_qc_utils import compute_qc_summary
 
 
@@ -63,11 +64,11 @@ def run_qc_pipeline(
     print("=" * 60)
 
     # Load data
-    print("\n[1/5] Loading data...")
+    print("\n[1/6] Loading data...")
     task_data = load_task_data(event_files_path)
 
     # Compute QC metrics (both RT and accuracy)
-    print("\n[2/5] Computing QC metrics...")
+    print("\n[2/6] Computing QC metrics...")
     qc_results = {}
     for task, df in task_data.items():
         print(f"  Processing {task}...")
@@ -80,16 +81,20 @@ def run_qc_pipeline(
     ], axis=1)
 
     # Check for missing data
-    print("\n[3/5] Checking for missing data...")
+    print("\n[3/6] Checking for missing data...")
     missing_df = check_missing_data(all_qc_data)
 
     # Run exclusion checks (WITHOUT missing data check)
-    print("\n[4/5] Running exclusion checks...")
+    print("\n[4/6] Running exclusion checks...")
     exclusion_df = run_all_exclusion_checks(all_qc_data)
 
     # Run flagging checks
-    print("\n[5/5] Running flagging checks...")
+    print("\n[5/6] Running flagging checks...")
     flags_df = run_all_flagging_checks(all_qc_data)
+
+    # Generate histograms
+    print("\n[6/6] Generating QC histograms...")
+    plot_all_task_histograms(qc_results, output_path)
 
     # Save outputs
     print("\n" + "=" * 60)
