@@ -298,7 +298,6 @@ def _compute_standard_acc(df: pd.DataFrame, task: str) -> pd.DataFrame:
 
             row["stop_success_rate"] = calc_stop_success_rate(subj_df, task)
             row["SSRT"] = calc_ssrt(subj_df, task)
-            row["mean_SSD"] = stop_trials.SS_delay.mean() if len(stop_trials) > 0 else np.nan
             row["max_SSD_count"] = (stop_trials.SS_delay == MAX_SSD).sum() if len(stop_trials) > 0 else 0
             row["min_SSD_count"] = (stop_trials.SS_delay == MIN_SSD).sum() if len(stop_trials) > 0 else 0
 

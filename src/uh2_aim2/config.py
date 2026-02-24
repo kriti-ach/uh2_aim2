@@ -8,10 +8,16 @@ import os
 BASE_PATH = "/oak/stanford/groups/russpold/data/uh2/aim2"
 BEHAVIOR_PATH = os.path.join(BASE_PATH, "behavioral_data")
 BEHAVIOR_QC_PATH = os.path.join(BEHAVIOR_PATH, "behavioral_qc")
-BIDS_PATH = os.path.join(BASE_PATH, "BIDS")
 EVENT_FILES_PATH = os.path.join(BEHAVIOR_PATH, "event_files")
 PROCESSED_PATH = os.path.join(BEHAVIOR_PATH, "processed")
 SUBJECT_DATA_PATH = os.path.join(BEHAVIOR_PATH, "aim2_incl_dropped")
+BIDS_PATH = os.path.join(BASE_PATH, "BIDS")
+
+# Project-local output path (scratch clone) for previewing trimmed files
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+TRIMMED_EVENT_OUTPUT_ROOT = os.path.join(PROJECT_ROOT, "trimmed_event_file_outputs")
+TRIMMED_EVENT_OUTPUT_EVENT_FILES_DIR = os.path.join(TRIMMED_EVENT_OUTPUT_ROOT, "event_files_outputs")
+TRIMMED_EVENT_OUTPUT_BIDS_DIR = os.path.join(TRIMMED_EVENT_OUTPUT_ROOT, "bids_outputs")
 
 # =============================================================================
 # TASKS
@@ -81,7 +87,7 @@ TRUNCATION_OMISSION_RATE = 0.50
 STOP_SUCCESS_MIN = 0.25
 STOP_SUCCESS_MAX = 0.75
 STOP_SIGNAL_GO_ACC = 0.55
-STOP_SIGNAL_GO_RT = 850
+STOP_SIGNAL_GO_RT = 1050
 
 # Motor selective stop: noncrit signal omission threshold
 MOTOR_STOP_NONCRIT_OMISSION_MAX = 0.35
@@ -134,13 +140,20 @@ HISTOGRAM_BINS = 20
 # =============================================================================
 # SUBJECTIVE EXCLUSIONS (manual review)
 # =============================================================================
-# SUBJECTIVE_EXCLUSIONS = [
-#     {"subject_id": 1046, "task": "motorSelectiveStop", "reason": "poor_performance_subjective_rating"},
-#     {"subject_id": 1399, "task": "discountFix", "reason": "poor_performance_subjective_rating"},
-#     {"subject_id": 4592, "task": "discountFix", "reason": "poor_performance_subjective_rating"},
-#     {"subject_id": 5387, "task": "discountFix", "reason": "poor_performance_subjective_rating"},
-#     {"subject_id": 1211, "task": "stopSignal", "reason": "poor_performance_subjective_rating"},
-#     {"subject_id": 1211, "task": "motorSelectiveStop", "reason": "poor_performance_subjective_rating"},
-# ]
+SUBJECTIVE_EXCLUSIONS = [
+    {"subject_id": 1046, "task": "motorSelectiveStop", "reason": "poor_performance_subjective_rating"},
+    {"subject_id": 1399, "task": "discountFix", "reason": "poor_performance_subjective_rating"},
+    {"subject_id": 4592, "task": "discountFix", "reason": "poor_performance_subjective_rating"},
+    {"subject_id": 5387, "task": "discountFix", "reason": "poor_performance_subjective_rating"},
+    {"subject_id": 1211, "task": "stopSignal", "reason": "poor_performance_subjective_rating"},
+    {"subject_id": 1211, "task": "motorSelectiveStop", "reason": "poor_performance_subjective_rating"},
+]
 
-SUBJECTIVE_EXCLUSIONS = []
+EVENT_FILES_TO_TRIM = [
+    {"subject_id": 5064, "task": "manipulationTask"},
+    {"subject_id": 5387, "task": "manipulationTask"},
+    {"subject_id": 1143, "task": "manipulationTask"},
+]
+
+# Use the same configured subject/task list for both event_files and BIDS events
+BIDS_EVENT_FILES_TO_TRIM = EVENT_FILES_TO_TRIM
