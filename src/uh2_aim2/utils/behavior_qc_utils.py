@@ -249,7 +249,7 @@ def compute_rt_summary(df: pd.DataFrame, task: str) -> pd.DataFrame:
     for subj in df.worker_id.unique():
         subj = standardize_subject_numbers(subj)
         subj_df = df[df.worker_id == f"s{subj}"] if f"s{subj}" in df.worker_id.values else df[df.worker_id == subj]
-        row = {"worker_id": subj}
+        row = {"subject_id": subj}
 
         for cond in conditions:
             cond_rt = subj_df[subj_df[cond_col] == cond].response_time.mean() * SECONDS_TO_MILLISECONDS
@@ -261,7 +261,7 @@ def compute_rt_summary(df: pd.DataFrame, task: str) -> pd.DataFrame:
 
         results.append(row)
 
-    return pd.DataFrame(results).set_index("worker_id")
+    return pd.DataFrame(results).set_index("subject_id")
 
 
 def compute_acc_summary(df: pd.DataFrame, task: str) -> pd.DataFrame:
@@ -284,7 +284,7 @@ def _compute_standard_acc(df: pd.DataFrame, task: str) -> pd.DataFrame:
     for subj in df.worker_id.unique():
         subj = standardize_subject_numbers(subj)
         subj_df = df[df.worker_id == f"s{subj}"] if f"s{subj}" in df.worker_id.values else df[df.worker_id == subj]
-        row = {"worker_id": subj}
+        row = {"subject_id": subj}
 
         # Accuracy by condition
         for cond in conditions:
@@ -315,7 +315,7 @@ def _compute_standard_acc(df: pd.DataFrame, task: str) -> pd.DataFrame:
             row["omission_rate"] = calc_omission_rate(subj_df, task)
         results.append(row)
 
-    return pd.DataFrame(results).set_index("worker_id")
+    return pd.DataFrame(results).set_index("subject_id")
 
 
 def _compute_discount_acc(df: pd.DataFrame) -> pd.DataFrame:
@@ -329,14 +329,14 @@ def _compute_discount_acc(df: pd.DataFrame) -> pd.DataFrame:
         k, r2 = calc_discount_rate_glm(subj_df)
 
         results.append({
-            "worker_id": subj,
+            "subject_id": subj,
             "larger_later_proportion": larger_later_proportion,
             "k_value": k,
             "r2_value": r2,
             "omission_rate": calc_omission_rate(subj_df, "discountFix"),
         })
 
-    return pd.DataFrame(results).set_index("worker_id")
+    return pd.DataFrame(results).set_index("subject_id")
 
 
 def _compute_manip_acc(df: pd.DataFrame) -> pd.DataFrame:
@@ -349,7 +349,7 @@ def _compute_manip_acc(df: pd.DataFrame) -> pd.DataFrame:
         subj_df = df[df.worker_id == f"s{subj}"] if f"s{subj}" in df.worker_id.values else df[df.worker_id == subj]
         rating_df = subj_df[(subj_df.trial_id == "current_rating") & (subj_df.trial_type != "no_stim")]
 
-        row = {"worker_id": subj}
+        row = {"subject_id": subj}
 
         for tt in trial_types:
             tt_df = rating_df[rating_df.trial_type == tt]
@@ -363,4 +363,4 @@ def _compute_manip_acc(df: pd.DataFrame) -> pd.DataFrame:
         row["omission_rate"] = calc_omission_rate(subj_df, "manipulationTask")
         results.append(row)
 
-    return pd.DataFrame(results).set_index("worker_id")
+    return pd.DataFrame(results).set_index("subject_id")

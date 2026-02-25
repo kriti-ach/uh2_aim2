@@ -91,6 +91,16 @@ def run_qc_pipeline(
     # Run flagging checks
     print("\n[5/6] Running flagging checks...")
     flags_df = run_all_flagging_checks(all_qc_data)
+    if not flags_df.empty:
+        excluded_pairs = set(
+            zip(exclusion_df["subject_id"], exclusion_df["task"])
+        ) if not exclusion_df.empty else set()
+        flags_df["excluded"] = [
+            (subj, task) in excluded_pairs
+            for subj, task in zip(flags_df["subject_id"], flags_df["task"])
+        ]
+    else:
+        flags_df["excluded"] = pd.Series(dtype=bool)
 
     # Generate histograms
     print("\n[6/6] Generating QC histograms...")

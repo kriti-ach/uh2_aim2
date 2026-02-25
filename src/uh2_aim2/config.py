@@ -122,7 +122,6 @@ HISTOGRAM_METRICS = {
         ("crit_go_rt", "Crit Go RT (ms)"),
         ("noncrit_signal_rt", "Noncrit Signal RT (ms)"),
         ("noncrit_nosignal_rt", "Noncrit Nosignal RT (ms)"),
-        ("omission_rate", "Omission Rate"),
         ("crit_go_omission", "Crit Go Omission"),
         ("noncrit_nosignal_omission", "Noncrit Nosignal Omission"),
         ("noncrit_signal_omission", "Noncrit Signal Omission"),

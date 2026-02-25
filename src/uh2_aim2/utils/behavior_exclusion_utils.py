@@ -299,9 +299,10 @@ def run_all_exclusion_checks(qc_df: pd.DataFrame) -> pd.DataFrame:
     # Combine all exclusions
     exclusions = pd.concat([df for df in checks if not df.empty], ignore_index=True)
 
-    # Remove duplicates (same subject-task-metric)
+    # Remove only exact duplicate rows so multiple criteria for the same
+    # subject/task are preserved in the exclusions output.
     if not exclusions.empty:
-        exclusions = exclusions.drop_duplicates(subset=["subject_id", "task", "metric"])
+        exclusions = exclusions.drop_duplicates()
 
     return exclusions
 
