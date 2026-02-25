@@ -65,8 +65,12 @@ def check_stop_signal_go_accuracy(qc_df: pd.DataFrame) -> pd.DataFrame:
     """Check stop signal go accuracy is within acceptable bounds."""
     exclusions = []
 
-    for task in ["stopSignal", "motorSelectiveStop"]:
-        col = f"{task}_go_acc"
+    task_to_column = {
+        "stopSignal": "stopSignal_go_acc",
+        "motorSelectiveStop": "motorSelectiveStop_crit_go_acc",
+    }
+
+    for task, col in task_to_column.items():
         if col not in qc_df.columns:
             continue
 
@@ -77,7 +81,7 @@ def check_stop_signal_go_accuracy(qc_df: pd.DataFrame) -> pd.DataFrame:
             exclusions.append({
                 "subject_id": subj,
                 "task": task,
-                "metric": "go_acc",
+                "metric": col.split(f"{task}_", 1)[1],
                 "metric_value": val,
                 "threshold": f"< {STOP_SIGNAL_GO_ACC}",
             })
@@ -88,8 +92,12 @@ def check_stop_signal_go_rt(qc_df: pd.DataFrame) -> pd.DataFrame:
     """Check stop signal go RT is within acceptable bounds."""
     exclusions = []
 
-    for task in ["stopSignal", "motorSelectiveStop"]:
-        col = f"{task}_go_rt"
+    task_to_column = {
+        "stopSignal": "stopSignal_go_rt",
+        "motorSelectiveStop": "motorSelectiveStop_crit_go_rt",
+    }
+
+    for task, col in task_to_column.items():
         if col not in qc_df.columns:
             continue
 
@@ -100,7 +108,7 @@ def check_stop_signal_go_rt(qc_df: pd.DataFrame) -> pd.DataFrame:
             exclusions.append({
                 "subject_id": subj,
                 "task": task,
-                "metric": "go_rt",
+                "metric": col.split(f"{task}_", 1)[1],
                 "metric_value": val,
                 "threshold": f"> {STOP_SIGNAL_GO_RT}",
             })
@@ -310,12 +318,6 @@ def run_all_exclusion_checks(qc_df: pd.DataFrame) -> pd.DataFrame:
             exclusions["metric"].astype(str) + " (" + exclusions["threshold"].astype(str) + ")"
         )
 
-        exclusions["failed_multiple_criteria"] = (
-            exclusions.groupby(["subject_id", "task"])["metric"]
-            .transform("size")
-            .gt(1)
-        )
-
         criteria_by_group = (
             exclusions.groupby(["subject_id", "task"])["criterion_label"]
             .apply(list)
@@ -332,7 +334,6 @@ def run_all_exclusion_checks(qc_df: pd.DataFrame) -> pd.DataFrame:
         )
         exclusions = exclusions.drop(columns=["criterion_label"])
     else:
-        exclusions["failed_multiple_criteria"] = pd.Series(dtype=bool)
         exclusions["other_criteria_failed"] = pd.Series(dtype=str)
 
     return exclusions
