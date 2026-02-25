@@ -66,7 +66,7 @@ def check_stop_signal_go_accuracy(qc_df: pd.DataFrame) -> pd.DataFrame:
     exclusions = []
 
     for task in ["stopSignal", "motorSelectiveStop"]:
-        col = f"{task}_go_accuracy"
+        col = f"{task}_go_acc"
         if col not in qc_df.columns:
             continue
 
@@ -77,7 +77,7 @@ def check_stop_signal_go_accuracy(qc_df: pd.DataFrame) -> pd.DataFrame:
             exclusions.append({
                 "subject_id": subj,
                 "task": task,
-                "metric": "go_accuracy",
+                "metric": "go_acc",
                 "metric_value": val,
                 "threshold": f"< {STOP_SIGNAL_GO_ACC}",
             })
@@ -305,13 +305,35 @@ def run_all_exclusion_checks(qc_df: pd.DataFrame) -> pd.DataFrame:
     # subject/task are preserved in the exclusions output.
     if not exclusions.empty:
         exclusions = exclusions.drop_duplicates()
+        exclusions = exclusions.copy()
+        exclusions["criterion_label"] = (
+            exclusions["metric"].astype(str) + " (" + exclusions["threshold"].astype(str) + ")"
+        )
+
         exclusions["failed_multiple_criteria"] = (
             exclusions.groupby(["subject_id", "task"])["metric"]
             .transform("size")
             .gt(1)
         )
+
+        criteria_by_group = (
+            exclusions.groupby(["subject_id", "task"])["criterion_label"]
+            .apply(list)
+            .to_dict()
+        )
+
+        exclusions["other_criteria_failed"] = exclusions.apply(
+            lambda row: ", ".join(
+                criterion
+                for criterion in criteria_by_group[(row["subject_id"], row["task"])]
+                if criterion != row["criterion_label"]
+            ),
+            axis=1,
+        )
+        exclusions = exclusions.drop(columns=["criterion_label"])
     else:
         exclusions["failed_multiple_criteria"] = pd.Series(dtype=bool)
+        exclusions["other_criteria_failed"] = pd.Series(dtype=str)
 
     return exclusions
 
