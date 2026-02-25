@@ -303,6 +303,13 @@ def run_all_exclusion_checks(qc_df: pd.DataFrame) -> pd.DataFrame:
     # subject/task are preserved in the exclusions output.
     if not exclusions.empty:
         exclusions = exclusions.drop_duplicates()
+        exclusions["failed_multiple_criteria"] = (
+            exclusions.groupby(["subject_id", "task"])["metric"]
+            .transform("size")
+            .gt(1)
+        )
+    else:
+        exclusions["failed_multiple_criteria"] = pd.Series(dtype=bool)
 
     return exclusions
 
