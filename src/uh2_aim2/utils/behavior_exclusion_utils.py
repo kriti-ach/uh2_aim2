@@ -290,6 +290,8 @@ def run_all_exclusion_checks(qc_df: pd.DataFrame) -> pd.DataFrame:
     checks = [
         get_subjective_exclusions(),
         check_stop_success_rate(qc_df),
+        check_stop_signal_go_accuracy(qc_df),
+        check_stop_signal_go_rt(qc_df),
         check_motor_stop_noncrit_omission(qc_df),
         check_discount_choice_pattern(qc_df),
         check_omission_rate(qc_df),
