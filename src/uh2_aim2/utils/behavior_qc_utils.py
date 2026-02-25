@@ -52,7 +52,7 @@ def calc_commission_rate(df: pd.DataFrame, task: str) -> dict[str, float]:
         if len(go_trials) == 0:
             return {"commission_rate": np.nan}
         return {
-            "commission_rate": (go_trials.key_press != go_trials.correct_response).mean()
+            "commission_rate": ((go_trials.key_press != go_trials.correct_response) & (go_trials.key_press != NO_RESPONSE)).mean()
         }
     
     elif task == "motorSelectiveStop":
