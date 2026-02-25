@@ -311,7 +311,8 @@ def _compute_standard_acc(df: pd.DataFrame, task: str) -> pd.DataFrame:
                     tt_df = subj_df[subj_df.trial_type == tt]
                     row[f"{tt}_omission"] = (tt_df.key_press == NO_RESPONSE).mean() if len(tt_df) > 0 else np.nan
 
-        row["omission_rate"] = calc_omission_rate(subj_df, task)
+        if task == "stopSignal":
+            row["omission_rate"] = calc_omission_rate(subj_df, task)
         results.append(row)
 
     return pd.DataFrame(results).set_index("worker_id")
