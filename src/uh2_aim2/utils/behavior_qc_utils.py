@@ -122,9 +122,13 @@ def calc_stop_success_rate(df: pd.DataFrame, task: str) -> float:
     return (stop_trials.trial_type == stop_types["success"]).mean()
 
 
-def calc_discount_rate_glm(df: pd.DataFrame) -> tuple[float, float]:
+def calc_discount_rate_glm(
+    df: pd.DataFrame,
+    subject_id: str | int | None = None,
+) -> tuple[float, float]:
     """Calculate hyperbolic discount rate using GLM."""
     data = df.copy()
+    subj_label = f"subject={subject_id}" if subject_id is not None else "subject=unknown"
 
     data["patient"] = np.where(
         data.choice == "larger_later", 1,
@@ -176,7 +180,10 @@ def calc_discount_rate_glm(df: pd.DataFrame) -> tuple[float, float]:
         
         if 'Intercept' not in model.params or 'indiff_k' not in model.params:
             if has_separation:
-                print(f"DEBUG: Failed due to separation (larger_later_proportion={data.patient.mean():.3f})")
+                print(
+                    f"DEBUG: {subj_label} failed due to separation "
+                    f"(n_trials={len(data)}, larger_later_proportion={data.patient.mean():.3f})"
+                )
             return data.indiff_k.median(), np.nan
             
         intercept = model.params['Intercept']
@@ -184,17 +191,27 @@ def calc_discount_rate_glm(df: pd.DataFrame) -> tuple[float, float]:
         
         if not np.isfinite(intercept) or not np.isfinite(slope):
             if has_separation:
-                print(f"DEBUG: Non-finite params due to separation (larger_later_proportion={data.patient.mean():.3f})")
+                print(
+                    f"DEBUG: {subj_label} non-finite params due to separation "
+                    f"(n_trials={len(data)}, larger_later_proportion={data.patient.mean():.3f})"
+                )
             return data.indiff_k.median(), np.nan
         
         if abs(slope) < 1e-10:
-            print(f"DEBUG: Slope near zero (larger_later_proportion={data.patient.mean():.3f})")
+            print(
+                f"DEBUG: {subj_label} slope near zero "
+                f"(n_trials={len(data)}, larger_later_proportion={data.patient.mean():.3f})"
+            )
             return data.indiff_k.median(), np.nan
             
         k = -intercept / slope
         
         if k < 0 or not np.isfinite(k) or k > 1000:
-            print(f"DEBUG: Invalid k={k} (larger_later_proportion={data.patient.mean():.3f})")
+            print(
+                f"DEBUG: {subj_label} invalid k={k} "
+                f"(n_trials={len(data)}, indiff_k_min={data.indiff_k.min():.6f}, "
+                f"indiff_k_max={data.indiff_k.max():.6f}, larger_later_proportion={data.patient.mean():.3f})"
+            )
             return data.indiff_k.median(), np.nan
         
         # Calculate r2
@@ -204,12 +221,19 @@ def calc_discount_rate_glm(df: pd.DataFrame) -> tuple[float, float]:
                 if np.isfinite(r2) and 0 <= r2 <= 1:
                     return k, r2
         
-        print(f"DEBUG: R² calculation failed (llf={model.llf if hasattr(model, 'llf') else 'N/A'}, larger_later_proportion={data.patient.mean():.3f})")
+        print(
+            f"DEBUG: {subj_label} R² calculation failed "
+            f"(llf={model.llf if hasattr(model, 'llf') else 'N/A'}, "
+            f"larger_later_proportion={data.patient.mean():.3f})"
+        )
         return k, np.nan
         
     except Exception as e:
         if has_separation:
-            print(f"DEBUG: Exception with separation: {type(e).__name__} (larger_later_proportion={data.patient.mean():.3f})")
+            print(
+                f"DEBUG: {subj_label} exception with separation: {type(e).__name__} "
+                f"(n_trials={len(data)}, larger_later_proportion={data.patient.mean():.3f})"
+            )
         return data.indiff_k.median(), np.nan
 
 
@@ -326,7 +350,7 @@ def _compute_discount_acc(df: pd.DataFrame) -> pd.DataFrame:
         subj_df = df[df.worker_id == f"s{subj}"] if f"s{subj}" in df.worker_id.values else df[df.worker_id == subj]
 
         larger_later_proportion = (subj_df.choice == "larger_later").mean()
-        k, r2 = calc_discount_rate_glm(subj_df)
+        k, r2 = calc_discount_rate_glm(subj_df, subject_id=subj)
 
         results.append({
             "subject_id": subj,
