@@ -205,13 +205,6 @@ def calc_discount_rate_glm(
             return data.indiff_k.median(), np.nan
             
         k = -intercept / slope
-
-        if k > 0:
-            print(
-                f"PRINT: {subj_label} k={k} is positive "
-                f"(n_trials={len(data)}, larger_later_proportion={data.patient.mean():.3f}, "
-                f"intercept={intercept:.6f}, slope={slope:.6f})"
-            )
         
         if k < 0 or not np.isfinite(k) or k > 1000:
             print(
