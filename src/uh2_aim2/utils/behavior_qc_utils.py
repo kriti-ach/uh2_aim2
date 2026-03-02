@@ -210,7 +210,8 @@ def calc_discount_rate_glm(
             print(
                 f"DEBUG: {subj_label} invalid k={k} "
                 f"(n_trials={len(data)}, indiff_k_min={data.indiff_k.min():.6f}, "
-                f"indiff_k_max={data.indiff_k.max():.6f}, larger_later_proportion={data.patient.mean():.3f})"
+                f"indiff_k_max={data.indiff_k.max():.6f}, larger_later_proportion={data.patient.mean():.3f}), "
+                f"intercept={intercept:.6f}, slope={slope:.6f}"
             )
             return data.indiff_k.median(), np.nan
         
