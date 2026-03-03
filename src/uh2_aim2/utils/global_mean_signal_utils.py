@@ -12,6 +12,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.figure import Figure
 
 from config import (
+    GLOBAL_MEAN_MAX_TRS,
     GLOBAL_MEAN_PANEL2_THRESHOLD,
     GLOBAL_MEAN_SHADE_END_TR,
     GLOBAL_MEAN_SHADE_START_TR,
@@ -162,6 +163,7 @@ def _plot_subject_page(
             y = metrics.get(metric_name, np.array([], dtype=np.float32))
             if y.size == 0:
                 continue
+            y = y[:GLOBAL_MEAN_MAX_TRS]
             x = np.arange(y.shape[0])
             ax.plot(x, y, marker="o", markersize=2, linewidth=1, label=task, color=color)
             ax.set_ylabel(y_label)
