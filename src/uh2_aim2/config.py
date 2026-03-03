@@ -152,7 +152,7 @@ BIDS_EVENT_FILES_TO_TRIM = EVENT_FILES_TO_TRIM
 GLOBAL_MEAN_SIGNAL_BIDS_PATH = BIDS_PATH
 
 # Output multipage PDF path (one page per subject)
-GLOBAL_MEAN_SIGNAL_OUTPUT_DIR = os.path.join(BASE_PATH, "global_mean_signal_qc")
+GLOBAL_MEAN_SIGNAL_OUTPUT_DIR = os.path.join(BASE_PATH, "analysis_outputs", "figures")
 GLOBAL_MEAN_SIGNAL_OUTPUT_PDF = os.path.join(
     GLOBAL_MEAN_SIGNAL_OUTPUT_DIR,
     "global_mean_signal_subject_report.pdf",

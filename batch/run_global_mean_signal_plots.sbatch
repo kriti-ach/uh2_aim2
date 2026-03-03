@@ -8,17 +8,9 @@
 
 set -euo pipefail
 
-# -----------------------------------------------------------------------------
-# Usage:
-#   sbatch run_global_mean_signal_plots.sbatch
-#
-# Notes:
-# - Update module loads below for your cluster if needed.
-# - This script assumes the repo has already been synced with `uv sync`.
-# -----------------------------------------------------------------------------
-
-REPO_DIR="/Users/kritiaxh/Documents/PoldrackLab/uh2_aim2"
-SRC_DIR="$REPO_DIR/src/uh2_aim2"
+# Resolve repo directory from submit location (no hardcoded local paths)
+REPO_DIR="${SLURM_SUBMIT_DIR:-$(pwd)}"
+SCRIPT_PATH="$REPO_DIR/src/uh2_aim2/create_global_mean_signal_plots.py"
 VENV_PY="$REPO_DIR/.venv/bin/python"
 
 mkdir -p "$REPO_DIR/logs"
@@ -26,8 +18,7 @@ mkdir -p "$REPO_DIR/logs"
 echo "[$(date)] Starting global mean signal PDF job"
 echo "Host: $(hostname)"
 echo "Job ID: ${SLURM_JOB_ID:-NA}"
-
-cd "$REPO_DIR"
+echo "Repo dir: $REPO_DIR"
 
 # Optional module loads for Stanford clusters (safe if unavailable)
 module load gcc/10.1.0 2>/dev/null || true
@@ -39,13 +30,10 @@ export OPENBLAS_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 export NUMEXPR_NUM_THREADS=1
 
-if [ ! -x "$VENV_PY" ]; then
-  echo "ERROR: Python venv not found at $VENV_PY"
-  echo "Run: cd $REPO_DIR && uv sync"
-  exit 1
+if [ -x "$VENV_PY" ]; then
+  "$VENV_PY" "$SCRIPT_PATH"
+else
+  python "$SCRIPT_PATH"
 fi
-
-cd "$SRC_DIR"
-"$VENV_PY" create_global_mean_signal_plots.py
 
 echo "[$(date)] Finished global mean signal PDF job"
