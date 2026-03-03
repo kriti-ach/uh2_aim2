@@ -16,7 +16,6 @@ from config import (
     STOP_SUCCESS_MAX,
     STOP_SUCCESS_MIN,
     SUBJECT_DATA_PATH,
-    SUBJECTIVE_EXCLUSIONS,
     TASKS,
     STOP_SIGNAL_GO_ACC,
     STOP_SIGNAL_GO_RT,
@@ -305,20 +304,6 @@ def check_manip_pre_rating(subjects: list, data_path: str = SUBJECT_DATA_PATH) -
     return pd.DataFrame(exclusions)
 
 
-def get_subjective_exclusions() -> pd.DataFrame:
-    """Convert subjective exclusions to DataFrame format."""
-    return pd.DataFrame([
-        {
-            "subject_id": exc["subject_id"],
-            "task": exc["task"],
-            "metric": "subjective_rating",
-            "metric_value": np.nan,
-            "threshold": exc["reason"],
-        }
-        for exc in SUBJECTIVE_EXCLUSIONS
-    ])
-
-
 def run_all_exclusion_checks(qc_df: pd.DataFrame) -> pd.DataFrame:
     """Run all exclusion checks and return consolidated exclusion DataFrame.
 
@@ -329,12 +314,10 @@ def run_all_exclusion_checks(qc_df: pd.DataFrame) -> pd.DataFrame:
 
     # Run all checks
     checks = [
-        get_subjective_exclusions(),
         check_stop_success_rate(qc_df),
         check_stop_signal_go_accuracy(qc_df),
         check_stop_signal_go_rt(qc_df),
         check_motor_stop_noncrit_omission(qc_df),
-        check_discount_choice_pattern(qc_df),
         check_discount_missing_r_value(qc_df),
         check_omission_rate(qc_df),
         check_manip_pre_rating(subjects),

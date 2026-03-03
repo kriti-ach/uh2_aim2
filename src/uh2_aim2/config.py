@@ -136,18 +136,6 @@ HISTOGRAM_METRICS = {
 
 HISTOGRAM_BINS = 20
 
-# =============================================================================
-# SUBJECTIVE EXCLUSIONS (manual review)
-# =============================================================================
-SUBJECTIVE_EXCLUSIONS = [
-    {"subject_id": 1046, "task": "motorSelectiveStop", "reason": "poor_performance_subjective_rating"},
-    {"subject_id": 1399, "task": "discountFix", "reason": "poor_performance_subjective_rating"},
-    {"subject_id": 4592, "task": "discountFix", "reason": "poor_performance_subjective_rating"},
-    {"subject_id": 5387, "task": "discountFix", "reason": "poor_performance_subjective_rating"},
-    {"subject_id": 1211, "task": "stopSignal", "reason": "poor_performance_subjective_rating"},
-    {"subject_id": 1211, "task": "motorSelectiveStop", "reason": "poor_performance_subjective_rating"},
-]
-
 EVENT_FILES_TO_TRIM = [
     {"subject_id": 5064, "task": "manipulationTask"},
     {"subject_id": 5387, "task": "manipulationTask"},
