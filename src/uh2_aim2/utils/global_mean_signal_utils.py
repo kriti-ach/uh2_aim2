@@ -108,6 +108,24 @@ def _subject_task_metrics(subject_func_dir: Path) -> dict[str, dict[str, np.ndar
     return subject_metrics
 
 
+def _normalize_subject_label(subject_id: str) -> str:
+    """Normalize user-provided subject id to BIDS style 'sub-<id>'."""
+    subj = subject_id.strip()
+    if subj.startswith("sub-"):
+        return subj
+    if subj.startswith("s"):
+        return f"sub-{subj[1:]}"
+    return f"sub-{subj}"
+
+
+def _list_subject_dirs(bids_root: Path) -> list[Path]:
+    """List subject directories under BIDS root."""
+    return sorted(
+        [path for path in bids_root.glob("sub-*") if path.is_dir()],
+        key=lambda path: path.name,
+    )
+
+
 def _ordered_tasks(task_metrics: dict[str, dict[str, np.ndarray]]) -> list[str]:
     """Return tasks in configured order, then any extras."""
     present = set(task_metrics.keys())
@@ -183,16 +201,62 @@ def _plot_subject_page(
     return fig
 
 
+def create_global_mean_signal_png_for_subject(
+    bids_path: str,
+    output_png_dir: str,
+    subject_id: str,
+) -> Path:
+    """Create one PNG for a single subject."""
+    bids_root = Path(bids_path)
+    output_dir = Path(output_png_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    subject_label = _normalize_subject_label(subject_id)
+    subject_dir = bids_root / subject_label
+    if not subject_dir.exists():
+        raise FileNotFoundError(f"Subject directory not found: {subject_dir}")
+
+    task_metrics = _subject_task_metrics(subject_dir)
+    if not task_metrics:
+        raise ValueError(f"No task NIfTI data found for {subject_label}")
+
+    fig = _plot_subject_page(subject_label, task_metrics)
+    output_path = output_dir / f"{subject_label}_global_mean_signal.png"
+    fig.savefig(output_path, dpi=200, bbox_inches="tight")
+    plt.close(fig)
+    return output_path
+
+
+def create_global_mean_signal_pngs_all_subjects(
+    bids_path: str,
+    output_png_dir: str,
+) -> list[Path]:
+    """Create one PNG per subject for all subjects in BIDS."""
+    bids_root = Path(bids_path)
+    output_dir = Path(output_png_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    saved_paths: list[Path] = []
+    for subject_dir in _list_subject_dirs(bids_root):
+        task_metrics = _subject_task_metrics(subject_dir)
+        if not task_metrics:
+            continue
+        fig = _plot_subject_page(subject_dir.name, task_metrics)
+        output_path = output_dir / f"{subject_dir.name}_global_mean_signal.png"
+        fig.savefig(output_path, dpi=200, bbox_inches="tight")
+        plt.close(fig)
+        saved_paths.append(output_path)
+
+    return saved_paths
+
+
 def create_global_mean_signal_pdf(bids_path: str, output_pdf_path: str) -> None:
     """Create one large PDF with one QC page per subject from BIDS NIfTIs."""
     bids_root = Path(bids_path)
     output_path = Path(output_pdf_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    subject_dirs = sorted(
-        [p for p in bids_root.glob("sub-*") if p.is_dir()],
-        key=lambda p: p.name,
-    )
+    subject_dirs = _list_subject_dirs(bids_root)
 
     with PdfPages(output_path) as pdf:
         for subject_dir in subject_dirs:

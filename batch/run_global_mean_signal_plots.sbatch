@@ -15,7 +15,7 @@ VENV_PY="$REPO_DIR/.venv/bin/python"
 
 mkdir -p "$REPO_DIR/logs"
 
-echo "[$(date)] Starting global mean signal PDF job"
+echo "[$(date)] Starting global mean signal plots job"
 echo "Host: $(hostname)"
 echo "Job ID: ${SLURM_JOB_ID:-NA}"
 echo "Repo dir: $REPO_DIR"
@@ -31,9 +31,9 @@ export MKL_NUM_THREADS=1
 export NUMEXPR_NUM_THREADS=1
 
 if [ -x "$VENV_PY" ]; then
-  "$VENV_PY" "$SCRIPT_PATH"
+  "$VENV_PY" "$SCRIPT_PATH" --all-subjects
 else
-  python "$SCRIPT_PATH"
+  python "$SCRIPT_PATH" --all-subjects
 fi
 
-echo "[$(date)] Finished global mean signal PDF job"
+echo "[$(date)] Finished global mean signal plots job"

@@ -151,12 +151,19 @@ BIDS_EVENT_FILES_TO_TRIM = EVENT_FILES_TO_TRIM
 # Input BIDS directory containing sub-*/ses-*/func/*_bold.nii.gz
 GLOBAL_MEAN_SIGNAL_BIDS_PATH = BIDS_PATH
 
-# Output multipage PDF path (one page per subject)
+# Output paths
 GLOBAL_MEAN_SIGNAL_OUTPUT_DIR = os.path.join(BASE_PATH, "analysis_outputs", "figures")
+GLOBAL_MEAN_SIGNAL_OUTPUT_PNG_DIR = os.path.join(
+    GLOBAL_MEAN_SIGNAL_OUTPUT_DIR,
+    "global_mean_signal_subject_pngs",
+)
 GLOBAL_MEAN_SIGNAL_OUTPUT_PDF = os.path.join(
     GLOBAL_MEAN_SIGNAL_OUTPUT_DIR,
     "global_mean_signal_subject_report.pdf",
 )
+
+# Default subject for quick single-subject plotting; if None, first subject in BIDS is used
+GLOBAL_MEAN_DEFAULT_SUBJECT = None
 
 # Tasks to plot if present (plus rest if present)
 GLOBAL_MEAN_TASK_ORDER = [
