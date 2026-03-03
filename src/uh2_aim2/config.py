@@ -144,3 +144,30 @@ EVENT_FILES_TO_TRIM = [
 
 # Use the same configured subject/task list for both event_files and BIDS events
 BIDS_EVENT_FILES_TO_TRIM = EVENT_FILES_TO_TRIM
+
+# =============================================================================
+# GLOBAL MEAN SIGNAL PLOTS (NIfTI-based)
+# =============================================================================
+# Input BIDS directory containing sub-*/ses-*/func/*_bold.nii.gz
+GLOBAL_MEAN_SIGNAL_BIDS_PATH = BIDS_PATH
+
+# Output multipage PDF path (one page per subject)
+GLOBAL_MEAN_SIGNAL_OUTPUT_DIR = os.path.join(BASE_PATH, "global_mean_signal_qc")
+GLOBAL_MEAN_SIGNAL_OUTPUT_PDF = os.path.join(
+    GLOBAL_MEAN_SIGNAL_OUTPUT_DIR,
+    "global_mean_signal_subject_report.pdf",
+)
+
+# Tasks to plot if present (plus rest if present)
+GLOBAL_MEAN_TASK_ORDER = [
+    "discountFix",
+    "manipulationTask",
+    "motorSelectiveStop",
+    "rest",
+    "stopSignal",
+]
+
+# Plot styling and thresholds
+GLOBAL_MEAN_PANEL2_THRESHOLD = 20.0
+GLOBAL_MEAN_SHADE_START_TR = 0
+GLOBAL_MEAN_SHADE_END_TR = 8
