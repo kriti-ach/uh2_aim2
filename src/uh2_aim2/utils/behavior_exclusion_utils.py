@@ -179,6 +179,39 @@ def check_discount_choice_pattern(qc_df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(exclusions)
 
 
+def check_discount_missing_r_value(qc_df: pd.DataFrame) -> pd.DataFrame:
+    """Exclude discountFix rows where r2_value is missing, with stored reason."""
+    r_col = "discountFix_r2_value"
+    reason_col = "discountFix_r_value_reason"
+
+    if r_col not in qc_df.columns:
+        return pd.DataFrame()
+
+    mask = ~qc_df.index.isin(["mean", "std"])
+    data = qc_df.loc[mask]
+    missing_r = data[data[r_col].isna()]
+
+    exclusions = []
+    for subj in missing_r.index:
+        reason = ""
+        if reason_col in data.columns and pd.notna(data.loc[subj, reason_col]):
+            reason = str(data.loc[subj, reason_col])
+        else:
+            reason = "no reason captured"
+
+        exclusions.append(
+            {
+                "subject_id": subj,
+                "task": "discountFix",
+                "metric": "r2_value",
+                "metric_value": np.nan,
+                "threshold": f"No r value because {reason}",
+            }
+        )
+
+    return pd.DataFrame(exclusions)
+
+
 def check_omission_rate(qc_df: pd.DataFrame) -> pd.DataFrame:
     """Check omission rate across all tasks."""
     exclusions = []
@@ -302,6 +335,7 @@ def run_all_exclusion_checks(qc_df: pd.DataFrame) -> pd.DataFrame:
         check_stop_signal_go_rt(qc_df),
         check_motor_stop_noncrit_omission(qc_df),
         check_discount_choice_pattern(qc_df),
+        check_discount_missing_r_value(qc_df),
         check_omission_rate(qc_df),
         check_manip_pre_rating(subjects),
     ]
@@ -323,6 +357,11 @@ def run_all_exclusion_checks(qc_df: pd.DataFrame) -> pd.DataFrame:
             .apply(list)
             .to_dict()
         )
+        exclusions["failed_multiple_criteria"] = (
+            exclusions.groupby(["subject_id", "task"])["criterion_label"]
+            .transform("size")
+            .gt(1)
+        )
 
         exclusions["other_criteria_failed"] = exclusions.apply(
             lambda row: ", ".join(
@@ -334,6 +373,7 @@ def run_all_exclusion_checks(qc_df: pd.DataFrame) -> pd.DataFrame:
         )
         exclusions = exclusions.drop(columns=["criterion_label"])
     else:
+        exclusions["failed_multiple_criteria"] = pd.Series(dtype=bool)
         exclusions["other_criteria_failed"] = pd.Series(dtype=str)
 
     return exclusions

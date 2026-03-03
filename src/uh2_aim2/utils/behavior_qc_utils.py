@@ -125,7 +125,7 @@ def calc_stop_success_rate(df: pd.DataFrame, task: str) -> float:
 def calc_discount_rate_glm(
     df: pd.DataFrame,
     subject_id: str | int | None = None,
-) -> tuple[float, float]:
+) -> tuple[float, float, str | None]:
     """Calculate hyperbolic discount rate using GLM."""
     data = df.copy()
     subj_label = f"subject={subject_id}" if subject_id is not None else "subject=unknown"
@@ -137,7 +137,7 @@ def calc_discount_rate_glm(
     data = data.dropna(subset=["patient"])
 
     if len(data) == 0:
-        return np.nan, np.nan
+        return np.nan, np.nan, f"{subj_label}: no valid patient choices"
 
     data["indiff_k"] = (
         (data.large_amount.astype(float) - data.small_amount.astype(float)) /
@@ -147,24 +147,16 @@ def calc_discount_rate_glm(
     data = data[np.isfinite(data.indiff_k)]
     
     if len(data) == 0:
-        return np.nan, np.nan
+        return np.nan, np.nan, f"{subj_label}: no finite indiff_k values"
 
     unique_choices = set(data.patient)
     if unique_choices == {0.0}:
-        return data.indiff_k.max(), np.nan
+        return data.indiff_k.max(), np.nan, f"{subj_label}: all choices were smaller_sooner"
     if unique_choices == {1.0}:
-        return data.indiff_k.min(), np.nan
+        return data.indiff_k.min(), np.nan, f"{subj_label}: all choices were larger_later"
 
     if data["indiff_k"].std() < 1e-10:
-        return np.nan, np.nan
-
-    # DIAGNOSTIC: Check for separation
-    data_sorted = data.sort_values('indiff_k')
-    quartiles = pd.qcut(data_sorted['indiff_k'], q=4, duplicates='drop')
-    quartile_means = data_sorted.groupby(quartiles)['patient'].mean()
-    
-    # If any quartile is 0% or 100%, that's quasi-complete separation
-    has_separation = ((quartile_means == 0) | (quartile_means == 1)).any()
+        return np.nan, np.nan, f"{subj_label}: near-zero variance in indiff_k"
 
     try:
         import warnings
@@ -179,63 +171,51 @@ def calc_discount_rate_glm(
             ).fit(maxiter=100, disp=False)
         
         if 'Intercept' not in model.params or 'indiff_k' not in model.params:
-            if has_separation:
-                print(
-                    f"DEBUG: {subj_label} failed due to separation "
-                    f"(n_trials={len(data)}, larger_later_proportion={data.patient.mean():.3f})"
-                )
-            return data.indiff_k.median(), np.nan
+            reason = (
+                f"{subj_label}: missing GLM params"
+            )
+            return data.indiff_k.median(), np.nan, reason
             
         intercept = model.params['Intercept']
         slope = model.params['indiff_k']
         
         if not np.isfinite(intercept) or not np.isfinite(slope):
-            if has_separation:
-                print(
-                    f"DEBUG: {subj_label} non-finite params due to separation "
-                    f"(n_trials={len(data)}, larger_later_proportion={data.patient.mean():.3f})"
-                )
-            return data.indiff_k.median(), np.nan
+            reason = (
+                f"{subj_label}: non-finite GLM params"
+            )
+            return data.indiff_k.median(), np.nan, reason
         
         if abs(slope) < 1e-10:
-            print(
-                f"DEBUG: {subj_label} slope near zero "
-                f"(n_trials={len(data)}, larger_later_proportion={data.patient.mean():.3f})"
+            reason = (
+                f"{subj_label}: slope near zero"
             )
-            return data.indiff_k.median(), np.nan
+            return data.indiff_k.median(), np.nan, reason
             
         k = -intercept / slope
         
         if k < 0 or not np.isfinite(k) or k > 1000:
-            print(
-                f"DEBUG: {subj_label} invalid k={k} "
-                f"(n_trials={len(data)}, indiff_k_min={data.indiff_k.min():.6f}, "
-                f"indiff_k_max={data.indiff_k.max():.6f}, larger_later_proportion={data.patient.mean():.3f}, "
-                f"intercept={intercept:.6f}, slope={slope:.6f})"
+            reason = (
+                f"{subj_label}: invalid k={k}"
             )
-            return data.indiff_k.median(), np.nan
+            return data.indiff_k.median(), np.nan, reason
         
         # Calculate r2
         if hasattr(model, 'llf') and hasattr(model, 'llnull'):
             if np.isfinite(model.llf) and np.isfinite(model.llnull) and model.llnull != 0:
                 r2 = 1 - (model.llf / model.llnull)
                 if np.isfinite(r2) and 0 <= r2 <= 1:
-                    return k, r2
+                    return k, r2, None
         
-        print(
-            f"DEBUG: {subj_label} R² calculation failed "
-            f"(llf={model.llf if hasattr(model, 'llf') else 'N/A'}, "
-            f"larger_later_proportion={data.patient.mean():.3f})"
+        reason = (
+            f"{subj_label}: R value calculation failed"
         )
-        return k, np.nan
+        return k, np.nan, reason
         
     except Exception as e:
-        if has_separation:
-            print(
-                f"DEBUG: {subj_label} exception with separation: {type(e).__name__} "
-                f"(n_trials={len(data)}, larger_later_proportion={data.patient.mean():.3f})"
-            )
-        return data.indiff_k.median(), np.nan
+        reason = (
+            f"{subj_label}: GLM exception {type(e).__name__}"
+        )
+        return data.indiff_k.median(), np.nan, reason
 
 
 # =============================================================================
@@ -351,13 +331,14 @@ def _compute_discount_acc(df: pd.DataFrame) -> pd.DataFrame:
         subj_df = df[df.worker_id == f"s{subj}"] if f"s{subj}" in df.worker_id.values else df[df.worker_id == subj]
 
         larger_later_proportion = (subj_df.choice == "larger_later").mean()
-        k, r2 = calc_discount_rate_glm(subj_df, subject_id=subj)
+        k, r2, r_value_reason = calc_discount_rate_glm(subj_df, subject_id=subj)
 
         results.append({
             "subject_id": subj,
             "larger_later_proportion": larger_later_proportion,
             "k_value": k,
             "r2_value": r2,
+            "r_value_reason": r_value_reason,
             "omission_rate": calc_omission_rate(subj_df, "discountFix"),
         })
 
