@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=uh2_gms_qc
-#SBATCH --time=08:00:00
+#SBATCH --time=00:10:00
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=64G
 #SBATCH --output=logs/%x_%j.out

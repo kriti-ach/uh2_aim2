@@ -187,15 +187,15 @@ def _plot_subject_page(
     )
 
     # Add shaded dummy TR region to all panels
-    # for ax in axes:
-    #     ax.axvspan(
-    #         GLOBAL_MEAN_SHADE_START_TR,
-    #         GLOBAL_MEAN_SHADE_END_TR,
-    #         color="#eec5cf",
-    #         alpha=0.35,
-    #     )
-    #     ax.grid(alpha=0.2)
-    #     ax.legend(loc="upper right", fontsize=8)
+    for ax in axes:
+        # ax.axvspan(
+        #     GLOBAL_MEAN_SHADE_START_TR,
+        #     GLOBAL_MEAN_SHADE_END_TR,
+        #     color="#eec5cf",
+        #     alpha=0.35,
+        # )
+        ax.grid(alpha=0.2)
+        ax.legend(loc="upper right", fontsize=8)
 
     axes[-1].set_xlabel("TR index")
     fig.suptitle(subject_id, fontsize=14, fontweight="bold")
