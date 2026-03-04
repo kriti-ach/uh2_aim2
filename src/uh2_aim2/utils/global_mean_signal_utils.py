@@ -152,7 +152,7 @@ def _plot_subject_page(
     # Panel 4: DVARS
     panel_map = [
         ("global_mean", "Global Mean Signal"),
-        ("delta_from_tr1", "Mean Signal (TR[n] - TR[1])"),
+        ("delta_from_tr1", "Δ Mean Signal (TR[n] - TR[1])"),
         ("slice_std", "Slice-wise Std Dev"),
         ("dvars", "DVARS"),
     ]
@@ -187,15 +187,15 @@ def _plot_subject_page(
     )
 
     # Add shaded dummy TR region to all panels
-    for ax in axes:
-        ax.axvspan(
-            GLOBAL_MEAN_SHADE_START_TR,
-            GLOBAL_MEAN_SHADE_END_TR,
-            color="#eec5cf",
-            alpha=0.35,
-        )
-        ax.grid(alpha=0.2)
-        ax.legend(loc="upper right", fontsize=8)
+    # for ax in axes:
+    #     ax.axvspan(
+    #         GLOBAL_MEAN_SHADE_START_TR,
+    #         GLOBAL_MEAN_SHADE_END_TR,
+    #         color="#eec5cf",
+    #         alpha=0.35,
+    #     )
+    #     ax.grid(alpha=0.2)
+    #     ax.legend(loc="upper right", fontsize=8)
 
     axes[-1].set_xlabel("TR index")
     fig.suptitle(subject_id, fontsize=14, fontweight="bold")
