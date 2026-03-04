@@ -14,12 +14,22 @@ SCRIPT_PATH="$REPO_DIR/src/uh2_aim2/create_global_mean_signal_plots.py"
 VENV_PY="$REPO_DIR/.venv/bin/python"
 
 # -----------------------------------------------------------------------------
-# Run mode:
-#   - Set RUN_ALL_SUBJECTS=0 and SUBJECT_ID=sub-XXXX for single-subject run
-#   - Set RUN_ALL_SUBJECTS=1 to run all subjects
+# Runtime controls (override with sbatch --export=...):
+#   RUN_ALL_SUBJECTS=1 or 0
+#   SUBJECT_ID=sub-XXXX (required only when RUN_ALL_SUBJECTS=0)
+#   OUTPUT_MODE=png|both|pdf
+# Notes:
+#   - png  = create PNG(s) only
+#   - both = create PNG(s) and PDF
+#   - pdf  = same as both (kept for convenience)
+#   - PDF generation is only supported for all-subject runs.
+# Example usage:
+#   sbatch --export=RUN_ALL_SUBJECTS=0,SUBJECT_ID=sub-1021,OUTPUT_MODE=png batch/run_global_mean_signal_plots.sbatch
+#   sbatch --export=RUN_ALL_SUBJECTS=1,OUTPUT_MODE=pdf batch/run_global_mean_signal_plots.sbatch
 # -----------------------------------------------------------------------------
-RUN_ALL_SUBJECTS=0
-SUBJECT_ID="sub-1021"
+RUN_ALL_SUBJECTS="${RUN_ALL_SUBJECTS:-1}"
+SUBJECT_ID="${SUBJECT_ID:-}"
+OUTPUT_MODE="${OUTPUT_MODE:-png}"
 
 mkdir -p "$REPO_DIR/logs"
 
@@ -38,18 +48,40 @@ export OPENBLAS_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 export NUMEXPR_NUM_THREADS=1
 
-if [ -x "$VENV_PY" ]; then
-  if [ "$RUN_ALL_SUBJECTS" -eq 1 ]; then
-    "$VENV_PY" "$SCRIPT_PATH" --all-subjects
-  else
-    "$VENV_PY" "$SCRIPT_PATH" --subject "$SUBJECT_ID"
-  fi
+ARGS=()
+if [ "$RUN_ALL_SUBJECTS" -eq 1 ]; then
+  ARGS+=(--all-subjects)
 else
-  if [ "$RUN_ALL_SUBJECTS" -eq 1 ]; then
-    python "$SCRIPT_PATH" --all-subjects
-  else
-    python "$SCRIPT_PATH" --subject "$SUBJECT_ID"
+  if [ -z "$SUBJECT_ID" ]; then
+    echo "ERROR: SUBJECT_ID must be set when RUN_ALL_SUBJECTS=0"
+    exit 1
   fi
+  ARGS+=(--subject "$SUBJECT_ID")
+fi
+
+case "$OUTPUT_MODE" in
+  png)
+    ;;
+  both|pdf)
+    if [ "$RUN_ALL_SUBJECTS" -ne 1 ]; then
+      echo "ERROR: OUTPUT_MODE=$OUTPUT_MODE requires RUN_ALL_SUBJECTS=1"
+      exit 1
+    fi
+    ARGS+=(--make-pdf)
+    ;;
+  *)
+    echo "ERROR: OUTPUT_MODE must be one of: png, both, pdf"
+    exit 1
+    ;;
+esac
+
+echo "Run mode: RUN_ALL_SUBJECTS=$RUN_ALL_SUBJECTS SUBJECT_ID=${SUBJECT_ID:-NA} OUTPUT_MODE=$OUTPUT_MODE"
+echo "Python args: ${ARGS[*]}"
+
+if [ -x "$VENV_PY" ]; then
+  "$VENV_PY" "$SCRIPT_PATH" "${ARGS[@]}"
+else
+  python "$SCRIPT_PATH" "${ARGS[@]}"
 fi
 
 echo "[$(date)] Finished global mean signal plots job"
