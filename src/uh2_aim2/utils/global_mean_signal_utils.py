@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.figure import Figure
 
-from config import (
+from uh2_aim2.config import (
     GLOBAL_MEAN_MAX_TRS,
     GLOBAL_MEAN_PANEL2_THRESHOLD,
     GLOBAL_MEAN_SHADE_END_TR,

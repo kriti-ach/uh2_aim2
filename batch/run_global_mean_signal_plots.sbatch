@@ -10,7 +10,7 @@ set -euo pipefail
 
 # Resolve repo directory from submit location (no hardcoded local paths)
 REPO_DIR="${SLURM_SUBMIT_DIR:-$(pwd)}"
-SCRIPT_PATH="$REPO_DIR/src/uh2_aim2/create_global_mean_signal_plots.py"
+SCRIPT_PATH="$REPO_DIR/scripts/create_global_mean_signal_plots.py"
 VENV_PY="$REPO_DIR/.venv/bin/python"
 
 # -----------------------------------------------------------------------------
@@ -23,9 +23,14 @@ VENV_PY="$REPO_DIR/.venv/bin/python"
 #   - both = create PNG(s) and PDF
 #   - pdf  = same as both (kept for convenience)
 #   - PDF generation is only supported for all-subject runs.
-# Example usage:
-#   sbatch --export=RUN_ALL_SUBJECTS=0,SUBJECT_ID=sub-1021,OUTPUT_MODE=png batch/run_global_mean_signal_plots.sbatch
-#   sbatch --export=RUN_ALL_SUBJECTS=1,OUTPUT_MODE=pdf batch/run_global_mean_signal_plots.sbatch
+# Example usage for all subjects PNG only:
+#   sbatch --export=ALL,RUN_ALL_SUBJECTS=1,OUTPUT_MODE=png batch/run_global_mean_signal_plots.sbatch
+# Example usage for all subjects PNG and PDF:
+#   sbatch --export=ALL,RUN_ALL_SUBJECTS=1,OUTPUT_MODE=both batch/run_global_mean_signal_plots.sbatch
+# Example usage for all subjects PDF only:
+#   sbatch --export=ALL,RUN_ALL_SUBJECTS=1,OUTPUT_MODE=pdf batch/run_global_mean_signal_plots.sbatch
+# Example usage for single subject PNG only:
+# sbatch --export=ALL,RUN_ALL_SUBJECTS=0,SUBJECT_ID=sub-1021,OUTPUT_MODE=png batch/run_global_mean_signal_plots.sbatch
 # -----------------------------------------------------------------------------
 RUN_ALL_SUBJECTS="${RUN_ALL_SUBJECTS:-1}"
 SUBJECT_ID="${SUBJECT_ID:-}"

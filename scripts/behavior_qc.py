@@ -13,19 +13,19 @@ from pathlib import Path
 
 import pandas as pd
 
-from config import (
+from uh2_aim2.config import (
     BEHAVIOR_QC_PATH,
     EVENT_FILES_PATH,
     TASKS,
 )
-from utils.behavior_exclusion_utils import (
+from uh2_aim2.utils.behavior_exclusion_utils import (
     run_all_exclusion_checks,
     summarize_exclusions,
     check_missing_data,
 )
-from utils.behavior_flagging_utils import run_all_flagging_checks
-from utils.behavior_plot_utils import plot_all_task_histograms
-from utils.behavior_qc_utils import compute_qc_summary
+from uh2_aim2.utils.behavior_flagging_utils import run_all_flagging_checks
+from uh2_aim2.utils.behavior_plot_utils import plot_all_task_histograms
+from uh2_aim2.utils.behavior_qc_utils import compute_qc_summary
 
 
 def load_task_data(event_files_path: str = EVENT_FILES_PATH) -> dict[str, pd.DataFrame]:
@@ -76,7 +76,7 @@ def run_qc_pipeline(
 
     # Combine all QC data for exclusion/flagging checks (exclude mean/std rows)
     all_qc_data = pd.concat([
-        df.iloc[:-2].add_prefix(f"{task}_") 
+        df.iloc[:-2].add_prefix(f"{task}_")
         for task, df in qc_results.items()
     ], axis=1)
 
@@ -134,11 +134,11 @@ def run_qc_pipeline(
     print("\n" + "=" * 60)
     print("Summary")
     print("=" * 60)
-    
+
     # Count subjects properly (first QC result, excluding mean/std)
     first_task_qc = next(iter(qc_results.values()))
     num_subjects = len(first_task_qc) - 2  # Subtract mean/std rows
-    
+
     print(f"  Total subjects: {num_subjects}")
     print(f"  Total exclusions: {summary.get('total_exclusions', 0)}")
     print(f"  Subjects with exclusions: {summary.get('unique_subjects_with_exclusions', 0)}")

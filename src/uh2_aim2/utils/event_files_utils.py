@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from config import (
+from uh2_aim2.config import (
     BIDS_EVENT_FILES_TO_TRIM,
     BIDS_PATH,
     EVENT_FILES_PATH,

@@ -6,13 +6,13 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from config import (
+from uh2_aim2.config import (
     GLOBAL_MEAN_DEFAULT_SUBJECT,
     GLOBAL_MEAN_SIGNAL_BIDS_PATH,
     GLOBAL_MEAN_SIGNAL_OUTPUT_PDF,
     GLOBAL_MEAN_SIGNAL_OUTPUT_PNG_DIR,
 )
-from utils.global_mean_signal_utils import (
+from uh2_aim2.utils.global_mean_signal_utils import (
     create_global_mean_signal_pdf,
     create_global_mean_signal_png_for_subject,
     create_global_mean_signal_pngs_all_subjects,

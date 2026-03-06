@@ -8,7 +8,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from config import (
+from uh2_aim2.config import (
     MAX_LARGER_LATER_PROPORTION,
     MIN_LARGER_LATER_PROPORTION,
     MOTOR_STOP_NONCRIT_OMISSION_MAX,

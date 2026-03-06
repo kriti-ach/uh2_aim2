@@ -5,8 +5,8 @@ from __future__ import annotations
 
 import argparse
 
-from config import TRIMMED_EVENT_OUTPUT_ROOT
-from utils.event_files_utils import trim_configured_event_files
+from uh2_aim2.config import TRIMMED_EVENT_OUTPUT_ROOT
+from uh2_aim2.utils.event_files_utils import trim_configured_event_files
 
 
 def _build_parser() -> argparse.ArgumentParser:

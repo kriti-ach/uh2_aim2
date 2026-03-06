@@ -7,7 +7,7 @@ import pandas as pd
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
-from config import (
+from uh2_aim2.config import (
     CONDITIONS,
     CONDITION_COLUMN,
     GO_TRIAL_TYPES,

@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from config import HISTOGRAM_BINS, HISTOGRAM_METRICS
+from uh2_aim2.config import HISTOGRAM_BINS, HISTOGRAM_METRICS
 
 
 def _resolve_metric(qc_df: pd.DataFrame, spec: str | tuple[str, str]) -> pd.Series:
