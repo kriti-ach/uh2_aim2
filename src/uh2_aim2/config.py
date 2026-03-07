@@ -179,3 +179,22 @@ GLOBAL_MEAN_PANEL2_THRESHOLD = 20.0
 GLOBAL_MEAN_SHADE_START_TR = 0
 GLOBAL_MEAN_SHADE_END_TR = 8
 GLOBAL_MEAN_MAX_TRS = 25
+
+# Subjects flagged from global mean signal plots as having unusually high signal
+GLOBAL_MEAN_HIGH_SUBJECTS = [
+    479,
+    615,
+    667,
+    772,
+    931,
+    1189,
+    1438,
+    1646,
+    2130,
+    3525,
+    5497,
+    7124,
+]
+
+# Sidecar JSON audit outputs
+SIDECAR_JSON_AUDIT_OUTPUT_DIR = os.path.join(BASE_PATH, "analysis_outputs", "figures")
