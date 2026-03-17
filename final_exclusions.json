@@ -1,0 +1,12 @@
+{
+    "behavioral_exclusions": [
+    ],
+    "fmriprep_exclusions": [
+    ],
+    "other_exclusions": [
+        {
+            "subject": "sub-225",
+            "reason": "Subject was overweight and seemed to break the protocol. Global mean signal started high and dropped."
+        }
+    ]
+}

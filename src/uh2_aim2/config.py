@@ -18,6 +18,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..
 TRIMMED_EVENT_OUTPUT_ROOT = os.path.join(PROJECT_ROOT, "trimmed_event_file_outputs")
 TRIMMED_EVENT_OUTPUT_EVENT_FILES_DIR = os.path.join(TRIMMED_EVENT_OUTPUT_ROOT, "event_files_outputs")
 TRIMMED_EVENT_OUTPUT_BIDS_DIR = os.path.join(TRIMMED_EVENT_OUTPUT_ROOT, "bids_outputs")
+FINAL_EXCLUSIONS_JSON_PATH = os.path.join(PROJECT_ROOT, "final_exclusions.json")
 
 # =============================================================================
 # TASKS
@@ -195,6 +196,3 @@ GLOBAL_MEAN_HIGH_SUBJECTS = [
     5497,
     7124,
 ]
-
-# Sidecar JSON audit outputs
-SIDECAR_JSON_AUDIT_OUTPUT_DIR = os.path.join(BASE_PATH, "analysis_outputs", "figures")

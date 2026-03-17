@@ -8,6 +8,7 @@ Runs quality control on behavioral data and outputs:
 """
 
 import os
+import json
 from glob import glob
 from pathlib import Path
 
@@ -16,6 +17,7 @@ import pandas as pd
 from uh2_aim2.config import (
     BEHAVIOR_QC_PATH,
     EVENT_FILES_PATH,
+    FINAL_EXCLUSIONS_JSON_PATH,
     TASKS,
 )
 from uh2_aim2.utils.behavior_exclusion_utils import (
@@ -26,6 +28,56 @@ from uh2_aim2.utils.behavior_exclusion_utils import (
 from uh2_aim2.utils.behavior_flagging_utils import run_all_flagging_checks
 from uh2_aim2.utils.behavior_plot_utils import plot_all_task_histograms
 from uh2_aim2.utils.behavior_qc_utils import compute_qc_summary
+
+
+def _format_subject_id(subject_value: object) -> str:
+    """Normalize subject values to BIDS-style ids, e.g. sub-1021."""
+    raw = str(subject_value).strip()
+    if raw.startswith("sub-"):
+        token = raw.replace("sub-", "")
+    elif raw.startswith("s"):
+        token = raw[1:]
+    else:
+        token = raw
+    token = token.lstrip("0") or "0"
+    return f"sub-{token}"
+
+
+def _update_final_exclusions_json(exclusion_df: pd.DataFrame, json_path: str) -> None:
+    """
+    Replace `behavioral_exclusions` in final_exclusions.json from current QC output.
+
+    Keeps all other top-level exclusion sections unchanged.
+    """
+    path = Path(json_path)
+    if path.exists():
+        with path.open("r", encoding="utf-8") as f:
+            payload = json.load(f)
+    else:
+        payload = {}
+
+    payload.setdefault("behavioral_exclusions", [])
+    payload.setdefault("fmriprep_exclusions", [])
+    payload.setdefault("other_exclusions", [])
+
+    if exclusion_df.empty:
+        payload["behavioral_exclusions"] = []
+    else:
+        pairs = (
+            exclusion_df[["subject_id", "task"]]
+            .drop_duplicates()
+        )
+        payload["behavioral_exclusions"] = [
+            {
+                "subject": _format_subject_id(row["subject_id"]),
+                "task": str(row["task"]),
+                "reason": "behavioral exclusion",
+            }
+            for _, row in pairs.iterrows()
+        ]
+
+    with path.open("w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=4)
 
 
 def load_task_data(event_files_path: str = EVENT_FILES_PATH) -> dict[str, pd.DataFrame]:
@@ -120,6 +172,8 @@ def run_qc_pipeline(
     # Exclusions
     exclusion_df.to_csv(os.path.join(output_path, "exclusions.csv"), index=False)
     print("  exclusions.csv")
+    _update_final_exclusions_json(exclusion_df, FINAL_EXCLUSIONS_JSON_PATH)
+    print(f"  {FINAL_EXCLUSIONS_JSON_PATH}")
 
     # Flags
     flags_df.to_csv(os.path.join(output_path, "flags.csv"), index=False)
