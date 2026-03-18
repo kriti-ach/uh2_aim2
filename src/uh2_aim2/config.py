@@ -196,3 +196,9 @@ GLOBAL_MEAN_HIGH_SUBJECTS = [
     5497,
     7124,
 ]
+
+# =============================================================================
+# FLYWHEEL PFILE METADATA AUDIT
+# =============================================================================
+FLYWHEEL_PROJECT_PATH = "russpold/uh2aim2"
+PFILE_METADATA_AUDIT_OUTPUT_DIR = os.path.join(BASE_PATH, "analysis_outputs", "figures")
