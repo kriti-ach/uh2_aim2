@@ -10,6 +10,7 @@ requires-python = ">=3.12"
 dependencies = [
     "numpy>=2.2.3",
     "pandas>=2.2.3",
+    "flywheel-sdk>=16.8.0",
     "matplotlib>=3.10.0",
     "statsmodels>=0.14.0,<0.15.0",
     "scipy>=1.11.0,<1.14.0",
