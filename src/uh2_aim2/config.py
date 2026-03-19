@@ -206,7 +206,7 @@ FMRIPREP_DERIVATIVES_PATH = os.path.join(
     "fmriprep_20.2.7_ignore_sbref",
     "fmriprep",
 )
-FMRIPREP_QC_OUTPUT_DIR = os.path.join(BASE_PATH, "analysis_outputs", "fmriprep_exclusions")
+FMRIPREP_QC_OUTPUT_DIR = os.path.join(BASE_PATH, "analysis_outputs")
 FMRIPREP_QC_OUTPUT_CSV = os.path.join(FMRIPREP_QC_OUTPUT_DIR, "fmriprep_metrics.csv")
 
 # Thresholds
