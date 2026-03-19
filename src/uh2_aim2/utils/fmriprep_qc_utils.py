@@ -109,8 +109,6 @@ def collect_fmriprep_motion_metrics(
             columns=[
                 "subject_id",
                 "task",
-                "session",
-                "run",
                 "fd_mean_mm",
                 "fd_trs_above_threshold_count",
                 "fd_trs_valid_count",
@@ -125,4 +123,4 @@ def collect_fmriprep_motion_metrics(
         )
 
     out = pd.DataFrame(rows)
-    return out.sort_values(["subject_id", "task", "session", "run"])
+    return out.sort_values(["subject_id", "task"])
