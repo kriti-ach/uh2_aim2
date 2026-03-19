@@ -84,8 +84,6 @@ def collect_fmriprep_motion_metrics(
         row = {
             "subject_id": f"sub-{subject.lstrip('0') or '0'}",
             "task": task,
-            "session": session,
-            "run": int(run) if run is not None else np.nan,
             "fd_mean_mm": fd_mean,
             f"fd_trs_above_{fd_tr_threshold_mm}mm_count": fd_n_above,
             "fd_trs_valid_count": fd_n_valid,
