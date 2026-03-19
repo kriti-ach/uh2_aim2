@@ -58,6 +58,7 @@ def collect_fmriprep_motion_metrics(
     fd_threshold_mm: float = 0.5,
     std_dvars_threshold: float = 1.5,
     high_motion_threshold_percent: float = 20.0,
+    fd_mean_min: float = 0.2,
 ) -> pd.DataFrame:
     """
     Collect scan-level motion metrics from fMRIPrep confounds TSVs.
@@ -67,6 +68,7 @@ def collect_fmriprep_motion_metrics(
     - std_dvars > std_dvars_threshold
     
     Then flags scans where >= high_motion_threshold_percent of TRs are motion spikes.
+    Only includes scans with mean FD >= fd_mean_min.
     """
     root = Path(fmriprep_root)
     confounds_files = sorted(root.rglob("*_desc-confounds_timeseries.tsv"))
@@ -95,6 +97,10 @@ def collect_fmriprep_motion_metrics(
         # Compute mean FD
         fd_numeric = pd.to_numeric(fd, errors="coerce")
         fd_mean = float(fd_numeric.mean()) if fd_numeric.notna().any() else np.nan
+        
+        # Skip scans with mean FD below threshold
+        if np.isnan(fd_mean) or fd_mean < fd_mean_min:
+            continue
         
         spike_pct, spike_n, n_valid = _compute_motion_spikes(
             fd_series=fd,
