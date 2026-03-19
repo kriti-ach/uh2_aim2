@@ -8,7 +8,6 @@ from pathlib import Path
 from uh2_aim2.config import (
     FMRIPREP_DERIVATIVES_PATH,
     FMRIPREP_DVARS_TR_THRESHOLD,
-    FMRIPREP_FD_MEAN_INCLUDE_THRESHOLD_MM,
     FMRIPREP_FD_TR_THRESHOLD_MM,
     FMRIPREP_HIGH_MOTION_TR_PERCENT_THRESHOLD,
     FMRIPREP_QC_OUTPUT_CSV,
@@ -23,10 +22,9 @@ def main() -> None:
 
     metrics_df = collect_fmriprep_motion_metrics(
         fmriprep_root=FMRIPREP_DERIVATIVES_PATH,
-        fd_tr_threshold_mm=FMRIPREP_FD_TR_THRESHOLD_MM,
-        dvars_tr_threshold=FMRIPREP_DVARS_TR_THRESHOLD,
-        high_motion_percent_threshold=FMRIPREP_HIGH_MOTION_TR_PERCENT_THRESHOLD,
-        fd_mean_include_threshold_mm=FMRIPREP_FD_MEAN_INCLUDE_THRESHOLD_MM,
+        fd_threshold_mm=FMRIPREP_FD_TR_THRESHOLD_MM,
+        std_dvars_threshold=FMRIPREP_DVARS_TR_THRESHOLD,
+        high_motion_threshold_percent=FMRIPREP_HIGH_MOTION_TR_PERCENT_THRESHOLD,
     )
 
     metrics_df.to_csv(FMRIPREP_QC_OUTPUT_CSV, index=False)
@@ -34,8 +32,8 @@ def main() -> None:
     print(f"Rows saved: {len(metrics_df)}")
     if not metrics_df.empty:
         print(
-            f"Rows with >{FMRIPREP_HIGH_MOTION_TR_PERCENT_THRESHOLD}% high-FD or high-DVARS: "
-            f"{int(metrics_df['either_threshold_flagged'].sum())}"
+            f"Rows with >{FMRIPREP_HIGH_MOTION_TR_PERCENT_THRESHOLD}% motion spikes: "
+            f"{int(metrics_df['high_motion_flag'].sum())}"
         )
 
 
