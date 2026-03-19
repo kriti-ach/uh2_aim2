@@ -34,8 +34,8 @@ def main() -> None:
     print(f"Rows saved: {len(metrics_df)}")
     if not metrics_df.empty:
         print(
-            f"Rows with >20% high-FD or high-DVARS: "
-            f"{int(metrics_df['flagged_any_threshold'].sum())}"
+            f"Rows with >{FMRIPREP_HIGH_MOTION_TR_PERCENT_THRESHOLD}% high-FD or high-DVARS: "
+            f"{int(metrics_df['either_threshold_flagged'].sum())}"
         )
 
 

@@ -20,15 +20,6 @@ def _extract(pattern: re.Pattern[str], text: str) -> str | None:
     return match.group(1) if match else None
 
 
-def _pick_dvars_column(columns: list[str]) -> str | None:
-    """Choose available DVARS-like column with preference for raw dvars."""
-    if "dvars" in columns:
-        return "dvars"
-    if "std_dvars" in columns:
-        return "std_dvars"
-    return None
-
-
 def _pct_above_threshold(series: pd.Series, threshold: float) -> tuple[float, int, int]:
     """
     Compute percent of TRs above threshold.
@@ -36,7 +27,7 @@ def _pct_above_threshold(series: pd.Series, threshold: float) -> tuple[float, in
     Returns:
         percent, n_above, n_valid
     """
-    numeric = pd.to_numeric(series, errors="coerce").dropna()
+    numeric = pd.Series(pd.to_numeric(series, errors="coerce")).dropna()
     n_valid = int(len(numeric))
     if n_valid == 0:
         return np.nan, 0, 0
@@ -76,19 +67,17 @@ def collect_fmriprep_motion_metrics(
         if "framewise_displacement" not in df.columns:
             continue
 
-        fd = pd.to_numeric(df["framewise_displacement"], errors="coerce")
+        fd = pd.Series(pd.to_numeric(df["framewise_displacement"], errors="coerce"))
         fd_mean = float(fd.dropna().mean()) if fd.notna().any() else np.nan
         if np.isnan(fd_mean) or fd_mean < fd_mean_include_threshold_mm:
             continue
 
         fd_pct, fd_n_above, fd_n_valid = _pct_above_threshold(fd, fd_tr_threshold_mm)
 
-        dvars_col = _pick_dvars_column(df.columns.tolist())
-        if dvars_col is not None:
-            dvars_pct, dvars_n_above, dvars_n_valid = _pct_above_threshold(
-                df[dvars_col],
-                dvars_tr_threshold,
-            )
+        # Use standardized DVARS only (requested)
+        if "std_dvars" in df.columns:
+            std_dvars = pd.Series(df["std_dvars"])
+            dvars_pct, dvars_n_above, dvars_n_valid = _pct_above_threshold(std_dvars, dvars_tr_threshold)
         else:
             dvars_pct, dvars_n_above, dvars_n_valid = np.nan, 0, 0
 
@@ -96,26 +85,24 @@ def collect_fmriprep_motion_metrics(
             "subject_id": f"sub-{subject.lstrip('0') or '0'}",
             "task": task,
             "session": session,
-            "run": int(run) if run else np.nan,
+            "run": int(run) if run is not None else np.nan,
             "fd_mean_mm": fd_mean,
-            "fd_n_trs_above_threshold": fd_n_above,
-            "fd_n_trs_valid": fd_n_valid,
-            "fd_percent_trs_above_threshold": fd_pct,
-            "gt20pct_trs_fd_gt_0p5mm": bool(
+            f"fd_trs_above_{fd_tr_threshold_mm}mm_count": fd_n_above,
+            "fd_trs_valid_count": fd_n_valid,
+            "fd_trs_above_threshold_percent": fd_pct,
+            f"fd_over_{high_motion_percent_threshold}pct_trs_above_threshold": bool(
                 not np.isnan(fd_pct) and fd_pct > high_motion_percent_threshold
             ),
-            "dvars_column_used": dvars_col,
-            "dvars_n_trs_above_threshold": dvars_n_above,
-            "dvars_n_trs_valid": dvars_n_valid,
-            "dvars_percent_trs_above_threshold": dvars_pct,
-            "gt20pct_trs_dvars_gt_1p5": bool(
+            f"std_dvars_trs_above_{dvars_tr_threshold}count": dvars_n_above,
+            "std_dvars_trs_valid_count": dvars_n_valid,
+            "std_dvars_trs_above_threshold_percent": dvars_pct,
+            f"std_dvars_over_{high_motion_percent_threshold}pct_trs_above_threshold": bool(
                 not np.isnan(dvars_pct) and dvars_pct > high_motion_percent_threshold
             ),
-            "flagged_any_threshold": bool(
+            "either_threshold_flagged": bool(
                 (not np.isnan(fd_pct) and fd_pct > high_motion_percent_threshold)
                 or (not np.isnan(dvars_pct) and dvars_pct > high_motion_percent_threshold)
             ),
-            "confounds_tsv_path": str(confounds_path),
         }
         rows.append(row)
 
@@ -127,17 +114,15 @@ def collect_fmriprep_motion_metrics(
                 "session",
                 "run",
                 "fd_mean_mm",
-                "fd_n_trs_above_threshold",
-                "fd_n_trs_valid",
-                "fd_percent_trs_above_threshold",
-                "gt20pct_trs_fd_gt_0p5mm",
-                "dvars_column_used",
-                "dvars_n_trs_above_threshold",
-                "dvars_n_trs_valid",
-                "dvars_percent_trs_above_threshold",
-                "gt20pct_trs_dvars_gt_1p5",
-                "flagged_any_threshold",
-                "confounds_tsv_path",
+                "fd_trs_above_threshold_count",
+                "fd_trs_valid_count",
+                "fd_trs_above_threshold_percent",
+                "fd_over_20pct_trs_above_threshold",
+                "std_dvars_trs_above_threshold_count",
+                "std_dvars_trs_valid_count",
+                "std_dvars_trs_above_threshold_percent",
+                "std_dvars_over_20pct_trs_above_threshold",
+                "either_threshold_flagged",
             ]
         )
 
