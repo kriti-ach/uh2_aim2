@@ -36,6 +36,34 @@ def _pct_above_threshold(series: pd.Series, threshold: float) -> tuple[float, in
     return percent, n_above, n_valid
 
 
+def _combined_motion_spike_pct(
+    fd_series: pd.Series,
+    std_dvars_series: pd.Series,
+    fd_threshold: float,
+    std_dvars_threshold: float,
+) -> tuple[float, int, int]:
+    """
+    Compute percent of TRs that are motion spikes by combined criterion:
+    (FD > fd_threshold) OR (std_dvars > std_dvars_threshold).
+    """
+    fd_numeric = pd.Series(pd.to_numeric(fd_series, errors="coerce"))
+    dvars_numeric = pd.Series(pd.to_numeric(std_dvars_series, errors="coerce"))
+
+    valid_mask = fd_numeric.notna() | dvars_numeric.notna()
+    spike_mask = (
+        (fd_numeric > fd_threshold).fillna(False)
+        | (dvars_numeric > std_dvars_threshold).fillna(False)
+    )
+
+    n_valid = int(valid_mask.sum())
+    if n_valid == 0:
+        return np.nan, 0, 0
+
+    n_spikes = int((spike_mask & valid_mask).sum())
+    pct_spikes = (n_spikes / n_valid) * 100.0
+    return pct_spikes, n_spikes, n_valid
+
+
 def collect_fmriprep_motion_metrics(
     fmriprep_root: str,
     fd_tr_threshold_mm: float,
@@ -75,31 +103,43 @@ def collect_fmriprep_motion_metrics(
         fd_pct, fd_n_above, fd_n_valid = _pct_above_threshold(fd, fd_tr_threshold_mm)
 
         # Use standardized DVARS only (requested)
-        if "std_dvars" in df.columns:
-            std_dvars = pd.Series(df["std_dvars"])
-            dvars_pct, dvars_n_above, dvars_n_valid = _pct_above_threshold(std_dvars, dvars_tr_threshold)
-        else:
-            dvars_pct, dvars_n_above, dvars_n_valid = np.nan, 0, 0
+        if "std_dvars" not in df.columns:
+            continue
+        std_dvars = pd.Series(df["std_dvars"])
+        dvars_pct, dvars_n_above, dvars_n_valid = _pct_above_threshold(std_dvars, dvars_tr_threshold)
+        spike_pct, spike_n, spike_valid = _combined_motion_spike_pct(
+            fd_series=fd,
+            std_dvars_series=std_dvars,
+            fd_threshold=fd_tr_threshold_mm,
+            std_dvars_threshold=dvars_tr_threshold,
+        )
 
         row = {
             "subject_id": f"sub-{subject.lstrip('0') or '0'}",
             "task": task,
+            "session": session,
+            "run": int(run) if run is not None else np.nan,
             "fd_mean_mm": fd_mean,
-            f"num_fd_trs_above_{fd_tr_threshold_mm}mm": fd_n_above,
-            "num_fd_trs_valid": fd_n_valid,
-            f"pct_fd_trs_above_{fd_tr_threshold_mm}mm": fd_pct,
-            f"fd_over_{high_motion_percent_threshold}%_trs_above_{fd_tr_threshold_mm}mm": bool(
+            "fd_trs_above_threshold_count": fd_n_above,
+            "fd_trs_valid_count": fd_n_valid,
+            "fd_trs_above_threshold_percent": fd_pct,
+            "fd_over_20pct_trs_above_threshold": bool(
                 not np.isnan(fd_pct) and fd_pct > high_motion_percent_threshold
             ),
-            f"num_std_dvars_trs_above_{dvars_tr_threshold}": dvars_n_above,
-            "num_std_dvars_trs_valid": dvars_n_valid,
-            f"pct_std_dvars_trs_above_{dvars_tr_threshold}": dvars_pct,
-            f"std_dvars_over_{high_motion_percent_threshold}%_trs_above_{dvars_tr_threshold}": bool(
+            "std_dvars_trs_above_threshold_count": dvars_n_above,
+            "std_dvars_trs_valid_count": dvars_n_valid,
+            "std_dvars_trs_above_threshold_percent": dvars_pct,
+            "std_dvars_over_20pct_trs_above_threshold": bool(
                 not np.isnan(dvars_pct) and dvars_pct > high_motion_percent_threshold
             ),
+            "motion_spike_trs_count": spike_n,
+            "motion_spike_trs_valid_count": spike_valid,
+            "motion_spike_trs_percent": spike_pct,
+            "motion_spikes_over_20pct": bool(
+                not np.isnan(spike_pct) and spike_pct >= high_motion_percent_threshold
+            ),
             "either_threshold_flagged": bool(
-                (not np.isnan(fd_pct) and fd_pct > high_motion_percent_threshold)
-                or (not np.isnan(dvars_pct) and dvars_pct > high_motion_percent_threshold)
+                not np.isnan(spike_pct) and spike_pct >= high_motion_percent_threshold
             ),
         }
         rows.append(row)
@@ -118,6 +158,10 @@ def collect_fmriprep_motion_metrics(
                 "std_dvars_trs_valid_count",
                 "std_dvars_trs_above_threshold_percent",
                 "std_dvars_over_20pct_trs_above_threshold",
+                "motion_spike_trs_count",
+                "motion_spike_trs_valid_count",
+                "motion_spike_trs_percent",
+                "motion_spikes_over_20pct",
                 "either_threshold_flagged",
             ]
         )
