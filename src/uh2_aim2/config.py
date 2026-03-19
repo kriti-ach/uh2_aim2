@@ -198,7 +198,19 @@ GLOBAL_MEAN_HIGH_SUBJECTS = [
 ]
 
 # =============================================================================
-# FLYWHEEL PFILE METADATA AUDIT
+# FMRIPREP QC (confounds-based)
 # =============================================================================
-FLYWHEEL_PROJECT_PATH = "russpold/uh2aim2"
-PFILE_METADATA_AUDIT_OUTPUT_DIR = os.path.join(BASE_PATH, "analysis_outputs", "figures")
+FMRIPREP_DERIVATIVES_PATH = os.path.join(
+    BIDS_PATH,
+    "derivatives",
+    "fmriprep_20.2.7_ignore_sbref",
+    "fmriprep",
+)
+FMRIPREP_QC_OUTPUT_DIR = os.path.join(BASE_PATH, "analysis_outputs", "fmriprep_exclusions")
+FMRIPREP_QC_OUTPUT_CSV = os.path.join(FMRIPREP_QC_OUTPUT_DIR, "fmriprep_metrics.csv")
+
+# Thresholds
+FMRIPREP_FD_TR_THRESHOLD_MM = 0.5
+FMRIPREP_DVARS_TR_THRESHOLD = 1.5
+FMRIPREP_HIGH_MOTION_TR_PERCENT_THRESHOLD = 20.0
+FMRIPREP_FD_MEAN_INCLUDE_THRESHOLD_MM = 0.2
