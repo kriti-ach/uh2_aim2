@@ -85,16 +85,16 @@ def collect_fmriprep_motion_metrics(
             "subject_id": f"sub-{subject.lstrip('0') or '0'}",
             "task": task,
             "fd_mean_mm": fd_mean,
-            f"fd_trs_above_{fd_tr_threshold_mm}mm_count": fd_n_above,
-            "fd_trs_valid_count": fd_n_valid,
-            "fd_trs_above_threshold_percent": fd_pct,
-            f"fd_over_{high_motion_percent_threshold}pct_trs_above_threshold": bool(
+            f"num_fd_trs_above_{fd_tr_threshold_mm}mm": fd_n_above,
+            "num_fd_trs_valid": fd_n_valid,
+            f"pct_fd_trs_above_{fd_tr_threshold_mm}mm": fd_pct,
+            f"fd_over_{high_motion_percent_threshold}%_trs_above_{fd_tr_threshold_mm}mm": bool(
                 not np.isnan(fd_pct) and fd_pct > high_motion_percent_threshold
             ),
-            f"std_dvars_trs_above_{dvars_tr_threshold}count": dvars_n_above,
-            "std_dvars_trs_valid_count": dvars_n_valid,
-            "std_dvars_trs_above_threshold_percent": dvars_pct,
-            f"std_dvars_over_{high_motion_percent_threshold}pct_trs_above_threshold": bool(
+            f"num_std_dvars_trs_above_{dvars_tr_threshold}": dvars_n_above,
+            "num_std_dvars_trs_valid": dvars_n_valid,
+            f"pct_std_dvars_trs_above_{dvars_tr_threshold}": dvars_pct,
+            f"std_dvars_over_{high_motion_percent_threshold}%_trs_above_{dvars_tr_threshold}": bool(
                 not np.isnan(dvars_pct) and dvars_pct > high_motion_percent_threshold
             ),
             "either_threshold_flagged": bool(
