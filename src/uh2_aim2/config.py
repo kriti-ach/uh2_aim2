@@ -9,7 +9,8 @@ BASE_PATH = "/oak/stanford/groups/russpold/data/uh2/aim2"
 BEHAVIOR_PATH = os.path.join(BASE_PATH, "behavioral_data")
 BEHAVIOR_QC_PATH = os.path.join(BEHAVIOR_PATH, "behavioral_qc")
 EVENT_FILES_PATH = os.path.join(BEHAVIOR_PATH, "event_files")
-PROCESSED_PATH = os.path.join(BEHAVIOR_PATH, "processed")
+BEHAVIOR_DATA = os.path.join(BEHAVIOR_PATH, "aim2_final_sample")
+BEHAVIOR_TIMING_QC_CSV = os.path.join(BEHAVIOR_QC_PATH, "behavior_timing_qc.csv")
 SUBJECT_DATA_PATH = os.path.join(BEHAVIOR_PATH, "aim2_incl_dropped")
 BIDS_PATH = os.path.join(BASE_PATH, "BIDS")
 
@@ -70,6 +71,15 @@ GO_TRIAL_TYPES = {
 # =============================================================================
 # QC THRESHOLDS
 # =============================================================================
+
+# Scanner / trigger wait windows: max(time_elapsed) - min(time_elapsed) on
+# rows with the given trial_id must match expected duration (within tolerance).
+MANIPULATION_SCANNER_WAIT_TRIAL_ID = "scanner_wait"
+MANIPULATION_SCANNER_WAIT_DURATION_S = 10.88
+FMRI_TRIGGER_WAIT_TRIAL_ID = "fmri_trigger_wait"
+FMRI_TRIGGER_WAIT_DURATION_S = 10.2
+FMRI_TRIGGER_WAIT_TASKS = ("discountFix", "stopSignal", "motorSelectiveStop")
+BEHAVIOR_TIMING_TOLERANCE_S = 1e-3
 
 # Outlier detection (z-score threshold)
 OUTLIER_THRESHOLD_STD = 3.0
