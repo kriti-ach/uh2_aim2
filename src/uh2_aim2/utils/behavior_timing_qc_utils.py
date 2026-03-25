@@ -10,12 +10,12 @@ import pandas as pd
 
 from uh2_aim2.config import (
     BEHAVIOR_DATA,
-    BEHAVIOR_TIMING_TOLERANCE_S,
     FMRI_TRIGGER_WAIT_DURATION_S,
     FMRI_TRIGGER_WAIT_TASKS,
     FMRI_TRIGGER_WAIT_TRIAL_ID,
     MANIPULATION_SCANNER_WAIT_DURATION_S,
     MANIPULATION_SCANNER_WAIT_TRIAL_ID,
+    SECONDS_TO_MILLISECONDS,
     TASKS,
 )
 
@@ -28,7 +28,8 @@ def _wait_span_seconds(
     df: pd.DataFrame, trial_id_col: str, time_col: str, trial_token: str
 ) -> tuple[float | None, str | None]:
     """
-    Return (max - min) time_elapsed for rows whose trial_id matches trial_token.
+    Return span in **seconds**: (max - min) ``time_elapsed`` (milliseconds in CSV)
+    for rows whose trial_id matches trial_token.
     On failure, duration is None and the second value is a short reason.
     """
     if trial_id_col not in df.columns:
@@ -46,8 +47,9 @@ def _wait_span_seconds(
     if numeric.isna().all():
         return None, "time_elapsed not numeric"
 
-    span = float(numeric.max() - numeric.min())
-    return span, None
+    span_ms = float(numeric.max() - numeric.min())
+    span_s = span_ms / float(SECONDS_TO_MILLISECONDS)
+    return span_s, None
 
 
 def _expected_for_task(task: str) -> tuple[str, float] | None:
@@ -58,10 +60,19 @@ def _expected_for_task(task: str) -> tuple[str, float] | None:
     return None
 
 
+def _span_in_nominal_bucket(span_s: float, expected_s: float, task: str) -> bool:
+    """True if span is in the same displayed-digit band as expected (half-open)."""
+    eps = 1e-9
+    if task == "manipulationTask":
+        low, high = expected_s, expected_s + 0.01
+    else:
+        low, high = expected_s, expected_s + 0.1
+    return (span_s + eps >= low) and (span_s < high)
+
+
 def run_behavior_timing_qc(
     subjects: list[str] | None = None,
     tasks: list[str] | None = None,
-    tolerance_s: float = BEHAVIOR_TIMING_TOLERANCE_S,
 ) -> pd.DataFrame:
     """
     For each subject × task, check wait-window span against config expectations.
@@ -141,7 +152,7 @@ def run_behavior_timing_qc(
                 continue
 
             delta = abs(span - expected)
-            ok = bool(np.isclose(span, expected, rtol=0.0, atol=tolerance_s))
+            ok = _span_in_nominal_bucket(span, expected, task)
             rows.append(
                 {
                     "subject_id": subject,

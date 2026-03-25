@@ -73,13 +73,14 @@ GO_TRIAL_TYPES = {
 # =============================================================================
 
 # Scanner / trigger wait windows: max(time_elapsed) - min(time_elapsed) on
-# rows with the given trial_id must match expected duration (within tolerance).
+# rows with the given trial_id. Raw ``time_elapsed`` is in milliseconds; span is
+# converted to seconds. Pass if span is in the same digit bucket as the nominal
+# duration: [10.88, 10.89) for manipulation, [10.2, 10.3) for FMRI trigger tasks.
 MANIPULATION_SCANNER_WAIT_TRIAL_ID = "scanner_wait"
 MANIPULATION_SCANNER_WAIT_DURATION_S = 10.88
 FMRI_TRIGGER_WAIT_TRIAL_ID = "fmri_trigger_wait"
 FMRI_TRIGGER_WAIT_DURATION_S = 10.2
 FMRI_TRIGGER_WAIT_TASKS = ("discountFix", "stopSignal", "motorSelectiveStop")
-BEHAVIOR_TIMING_TOLERANCE_S = 1e-3
 
 # Outlier detection (z-score threshold)
 OUTLIER_THRESHOLD_STD = 3.0

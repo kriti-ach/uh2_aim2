@@ -9,7 +9,7 @@ import argparse
 import os
 import sys
 
-from uh2_aim2.config import BEHAVIOR_TIMING_QC_CSV, BEHAVIOR_TIMING_TOLERANCE_S, TASKS
+from uh2_aim2.config import BEHAVIOR_TIMING_QC_CSV, TASKS
 from uh2_aim2.utils.behavior_timing_qc_utils import run_behavior_timing_qc
 
 
@@ -28,12 +28,6 @@ def main() -> int:
         help=f"Tasks to check. Default: {TASKS}",
     )
     parser.add_argument(
-        "--tolerance",
-        type=float,
-        default=BEHAVIOR_TIMING_TOLERANCE_S,
-        help=f"Absolute tolerance in seconds (default {BEHAVIOR_TIMING_TOLERANCE_S})",
-    )
-    parser.add_argument(
         "-o",
         "--output",
         default=BEHAVIOR_TIMING_QC_CSV,
@@ -44,7 +38,6 @@ def main() -> int:
     df = run_behavior_timing_qc(
         subjects=list(args.subjects) if args.subjects else None,
         tasks=list(args.tasks) if args.tasks else None,
-        tolerance_s=args.tolerance,
     )
     out_dir = os.path.dirname(os.path.abspath(args.output))
     if out_dir:
