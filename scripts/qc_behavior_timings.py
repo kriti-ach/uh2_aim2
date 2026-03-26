@@ -56,7 +56,13 @@ def main() -> int:
     if flagged_out_dir:
         os.makedirs(flagged_out_dir, exist_ok=True)
     df.to_csv(args.output, index=False)
-    flagged_df = df[(~df["ok"]) & (df["delta"] >= BEHAVIOR_TIMING_FLAG_DELTA_THRESHOLD)].copy()
+    flagged_df = df[
+        (~df["ok"])
+        & (
+            (df["flag_reason"] == "missing csv")
+            | (df["delta"] >= BEHAVIOR_TIMING_FLAG_DELTA_THRESHOLD)
+        )
+    ].copy()
     flagged_df.to_csv(args.flagged_output, index=False)
 
     n_flag = int((~df["ok"]).sum())

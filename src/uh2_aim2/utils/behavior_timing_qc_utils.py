@@ -103,7 +103,6 @@ def run_behavior_timing_qc(
                     {
                         "subject_id": subject,
                         "task": task,
-                        "csv_path": path,
                         "trial_id_filter": trial_token,
                         "expected_duration": expected,
                         "observed_duration": np.nan,
@@ -121,7 +120,6 @@ def run_behavior_timing_qc(
                     {
                         "subject_id": subject,
                         "task": task,
-                        "csv_path": path,
                         "trial_id_filter": trial_token,
                         "expected_duration": expected,
                         "observed_duration": np.nan,
@@ -140,7 +138,6 @@ def run_behavior_timing_qc(
                     {
                         "subject_id": subject,
                         "task": task,
-                        "csv_path": path,
                         "trial_id_filter": trial_token,
                         "expected_duration": expected,
                         "observed_duration": np.nan,
