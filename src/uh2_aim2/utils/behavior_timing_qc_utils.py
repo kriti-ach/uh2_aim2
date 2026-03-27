@@ -10,6 +10,7 @@ import pandas as pd
 
 from uh2_aim2.config import (
     BEHAVIOR_DATA,
+    FMRI_TRIGGER_TR_MS,
     FMRI_TRIGGER_WAIT_DURATION_S,
     FMRI_TRIGGER_WAIT_TASKS,
     FMRI_TRIGGER_WAIT_TRIAL_ID,
@@ -28,9 +29,11 @@ def _wait_span_seconds(
     df: pd.DataFrame, trial_id_col: str, time_col: str, trial_token: str
 ) -> tuple[float | None, str | None]:
     """
-    Return span in **seconds**: (max - min) ``time_elapsed`` (milliseconds in CSV)
-    for rows whose trial_id matches trial_token.
-    On failure, duration is None and the second value is a short reason.
+    Return span in **seconds** for rows whose trial_id matches ``trial_token``.
+
+    - ``scanner_wait``: (max - min) ``time_elapsed`` (ms in CSV) → s.
+    - ``fmri_trigger_wait``: file order, last minus second ``time_elapsed`` (ms)
+      plus ``FMRI_TRIGGER_TR_MS``; single matching row uses ``block_duration`` (ms).
     """
     if trial_id_col not in df.columns:
         return None, f"missing column {trial_id_col!r}"
@@ -43,16 +46,28 @@ def _wait_span_seconds(
     if sub_rows.empty:
         return None, f"no rows with {trial_id_col}=={trial_token!r}"
 
-    # Some files have a single fmri_trigger_wait row. In that case, use
-    # block_duration (ms) for the span instead of max-min(time_elapsed).
-    if len(sub_rows) == 1 and trial_token == FMRI_TRIGGER_WAIT_TRIAL_ID:
-        if "block_duration" not in sub_rows.columns:
-            return None, "single wait row but missing column 'block_duration'"
-        block_vals = pd.Series(pd.to_numeric(sub_rows["block_duration"], errors="coerce"))
-        block_val = block_vals.iloc[0]
-        if pd.isna(block_val):
-            return None, "single wait row but block_duration not numeric"
-        span_ms = float(block_val)
+    if trial_token == FMRI_TRIGGER_WAIT_TRIAL_ID:
+        if len(sub_rows) == 1:
+            if "block_duration" not in sub_rows.columns:
+                return None, "single wait row but missing column 'block_duration'"
+            block_vals = pd.Series(
+                pd.to_numeric(sub_rows["block_duration"], errors="coerce")
+            )
+            block_val = block_vals.iloc[0]
+            if pd.isna(block_val):
+                return None, "single wait row but block_duration not numeric"
+            span_ms = float(block_val)
+            span_s = span_ms / float(SECONDS_TO_MILLISECONDS)
+            return span_s, None
+
+        numeric = pd.Series(
+            pd.to_numeric(pd.Series(sub_rows[time_col]), errors="coerce")
+        )
+        second_te = numeric.iloc[1]
+        last_te = numeric.iloc[-1]
+        if pd.isna(second_te) or pd.isna(last_te):
+            return None, "time_elapsed not numeric on second or last fmri_trigger_wait row"
+        span_ms = float(last_te - second_te) + float(FMRI_TRIGGER_TR_MS)
         span_s = span_ms / float(SECONDS_TO_MILLISECONDS)
         return span_s, None
 
