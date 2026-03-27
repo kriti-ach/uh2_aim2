@@ -39,11 +39,25 @@ def _wait_span_seconds(
 
     tid = df[trial_id_col].astype(str).str.strip()
     mask = tid == trial_token
-    sub = df.loc[mask, time_col]
-    if sub.empty:
+    sub_rows = df.loc[mask]
+    if sub_rows.empty:
         return None, f"no rows with {trial_id_col}=={trial_token!r}"
 
-    numeric = pd.to_numeric(sub, errors="coerce")
+    # Some files have a single fmri_trigger_wait row. In that case, use
+    # block_duration (ms) for the span instead of max-min(time_elapsed).
+    if len(sub_rows) == 1 and trial_token == FMRI_TRIGGER_WAIT_TRIAL_ID:
+        if "block_duration" not in sub_rows.columns:
+            return None, "single wait row but missing column 'block_duration'"
+        block_vals = pd.Series(pd.to_numeric(sub_rows["block_duration"], errors="coerce"))
+        block_val = block_vals.iloc[0]
+        if pd.isna(block_val):
+            return None, "single wait row but block_duration not numeric"
+        span_ms = float(block_val)
+        span_s = span_ms / float(SECONDS_TO_MILLISECONDS)
+        return span_s, None
+
+    sub = pd.Series(sub_rows[time_col])
+    numeric = pd.Series(pd.to_numeric(sub, errors="coerce"))
     if numeric.isna().all():
         return None, "time_elapsed not numeric"
 
@@ -148,6 +162,7 @@ def run_behavior_timing_qc(
                 )
                 continue
 
+            assert span is not None
             delta = abs(span - expected)
             ok = _span_in_nominal_bucket(span, expected, task)
             rows.append(
