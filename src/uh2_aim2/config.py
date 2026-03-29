@@ -74,18 +74,19 @@ GO_TRIAL_TYPES = {
 # =============================================================================
 
 # Scanner / trigger wait windows. Raw ``time_elapsed`` is in milliseconds; span is
-# converted to seconds. Pass if span is in the same digit bucket as the nominal
-# duration: [10.88, 10.89) for manipulation, [10.2, 10.3) for FMRI trigger tasks.
+# converted to seconds. Nominal duration for every task below is
+# ``BEHAVIOR_TIMING_NOMINAL_WAIT_DURATION_S`` (pass if span in [10.88, 10.89) s).
 #
 # Manipulation (scanner_wait): max(time_elapsed) - min(time_elapsed) on matching rows.
 #
 # discountFix / stopSignal / motorSelectiveStop (fmri_trigger_wait): in file order,
-# last row's time_elapsed minus the second row's time_elapsed, plus one TR (ms).
+# last row's time_elapsed minus the second row's time_elapsed, plus ``FMRI_TRIGGER_TR_MS``.
 # If there is only one matching row, use ``block_duration`` (ms) as fallback.
+BEHAVIOR_TIMING_NOMINAL_WAIT_DURATION_S = 10.88
 MANIPULATION_SCANNER_WAIT_TRIAL_ID = "scanner_wait"
-MANIPULATION_SCANNER_WAIT_DURATION_S = 10.88
+MANIPULATION_SCANNER_WAIT_DURATION_S = BEHAVIOR_TIMING_NOMINAL_WAIT_DURATION_S
 FMRI_TRIGGER_WAIT_TRIAL_ID = "fmri_trigger_wait"
-FMRI_TRIGGER_WAIT_DURATION_S = 10.2
+FMRI_TRIGGER_WAIT_DURATION_S = BEHAVIOR_TIMING_NOMINAL_WAIT_DURATION_S
 FMRI_TRIGGER_WAIT_TASKS = ("discountFix", "stopSignal", "motorSelectiveStop")
 FMRI_TRIGGER_TR_MS = 680
 BEHAVIOR_TIMING_FLAG_DELTA_THRESHOLD = 0.5

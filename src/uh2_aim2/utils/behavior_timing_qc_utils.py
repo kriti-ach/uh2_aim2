@@ -89,13 +89,10 @@ def _expected_for_task(task: str) -> tuple[str, float] | None:
     return None
 
 
-def _span_in_nominal_bucket(span_s: float, expected_s: float, task: str) -> bool:
-    """True if span is in the same displayed-digit band as expected (half-open)."""
+def _span_in_nominal_bucket(span_s: float, expected_s: float) -> bool:
+    """True if span is in the hundredth-second band [expected, expected + 0.01)."""
     eps = 1e-9
-    if task == "manipulationTask":
-        low, high = expected_s, expected_s + 0.01
-    else:
-        low, high = expected_s, expected_s + 0.1
+    low, high = expected_s, expected_s + 0.01
     return (span_s + eps >= low) and (span_s < high)
 
 
@@ -179,7 +176,7 @@ def run_behavior_timing_qc(
 
             assert span is not None
             delta = abs(span - expected)
-            ok = _span_in_nominal_bucket(span, expected, task)
+            ok = _span_in_nominal_bucket(span, expected)
             rows.append(
                 {
                     "subject_id": subject,
