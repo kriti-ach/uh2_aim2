@@ -32,7 +32,7 @@ def _wait_span_seconds(
     Return span in **seconds** for rows whose trial_id matches ``trial_token``.
 
     - ``scanner_wait``: (max - min) ``time_elapsed`` (ms in CSV) → s.
-    - ``fmri_trigger_wait``: file order, last minus second ``time_elapsed`` (ms)
+    - ``fmri_trigger_wait``: file order, last minus first ``time_elapsed`` (ms)
       plus ``FMRI_TRIGGER_TR_MS``; single matching row uses ``block_duration`` (ms).
     """
     if trial_id_col not in df.columns:
@@ -63,11 +63,11 @@ def _wait_span_seconds(
         numeric = pd.Series(
             pd.to_numeric(pd.Series(sub_rows[time_col]), errors="coerce")
         )
-        second_te = numeric.iloc[1]
+        first_te = numeric.iloc[0]
         last_te = numeric.iloc[-1]
-        if pd.isna(second_te) or pd.isna(last_te):
-            return None, "time_elapsed not numeric on second or last fmri_trigger_wait row"
-        span_ms = float(last_te - second_te) + float(FMRI_TRIGGER_TR_MS)
+        if pd.isna(first_te) or pd.isna(last_te):
+            return None, "time_elapsed not numeric on first or last fmri_trigger_wait row"
+        span_ms = float(last_te - first_te) + float(FMRI_TRIGGER_TR_MS)
         span_s = span_ms / float(SECONDS_TO_MILLISECONDS)
         return span_s, None
 
