@@ -223,6 +223,11 @@ def calc_discount_rate_glm(
 # QC SUMMARY FUNCTIONS
 # =============================================================================
 
+def _empty_qc_subject_df() -> pd.DataFrame:
+    """Per-subject QC table with no rows (after filter/load produced no trials)."""
+    return pd.DataFrame(index=pd.Index([], name="subject_id"))
+
+
 def standardize_subject_numbers(subj: str | int) -> int:
     """Standardize subject numbers to remove the "s" prefix."""
     if isinstance(subj, str) and subj.startswith("s"):
@@ -263,13 +268,18 @@ def compute_qc_summary(df: pd.DataFrame, task: str) -> pd.DataFrame:
 
 def compute_rt_summary(df: pd.DataFrame, task: str) -> pd.DataFrame:
     """Compute RT summary statistics by subject for a task."""
-    conditions = CONDITIONS.get(task, df.trial_type.unique().tolist())
+    if df.empty or "worker_id" not in df.columns:
+        return _empty_qc_subject_df()
+
+    conditions = CONDITIONS.get(task, [])
+    if not conditions:
+        conditions = df.trial_type.dropna().unique().tolist()
     cond_col = CONDITION_COLUMN.get(task, "trial_type")
 
     # Group by subject and condition, compute mean RT
     results = []
-    for subj in df.worker_id.unique():
-        subj = standardize_subject_numbers(subj)
+    for raw in df["worker_id"].dropna().unique():
+        subj = standardize_subject_numbers(raw)
         subj_df = _rows_for_subject_id(df, subj)
         row = {"subject_id": subj}
 
@@ -283,6 +293,8 @@ def compute_rt_summary(df: pd.DataFrame, task: str) -> pd.DataFrame:
 
         results.append(row)
 
+    if not results:
+        return _empty_qc_subject_df()
     return pd.DataFrame(results).set_index("subject_id")
 
 
@@ -299,12 +311,15 @@ def compute_acc_summary(df: pd.DataFrame, task: str) -> pd.DataFrame:
 
 def _compute_standard_acc(df: pd.DataFrame, task: str) -> pd.DataFrame:
     """Compute accuracy for standard tasks (stop signal, motor stop)."""
+    if df.empty or "worker_id" not in df.columns:
+        return _empty_qc_subject_df()
+
     conditions = CONDITIONS.get(task, [])
     cond_col = CONDITION_COLUMN.get(task, "trial_type")
 
     results = []
-    for subj in df.worker_id.unique():
-        subj = standardize_subject_numbers(subj)
+    for raw in df["worker_id"].dropna().unique():
+        subj = standardize_subject_numbers(raw)
         subj_df = _rows_for_subject_id(df, subj)
         row = {"subject_id": subj}
 
@@ -337,14 +352,19 @@ def _compute_standard_acc(df: pd.DataFrame, task: str) -> pd.DataFrame:
             row["omission_rate"] = calc_omission_rate(subj_df, task)
         results.append(row)
 
+    if not results:
+        return _empty_qc_subject_df()
     return pd.DataFrame(results).set_index("subject_id")
 
 
 def _compute_discount_acc(df: pd.DataFrame) -> pd.DataFrame:
     """Compute accuracy metrics for discount task."""
+    if df.empty or "worker_id" not in df.columns:
+        return _empty_qc_subject_df()
+
     results = []
-    for subj in df.worker_id.unique():
-        subj = standardize_subject_numbers(subj)
+    for raw in df["worker_id"].dropna().unique():
+        subj = standardize_subject_numbers(raw)
         subj_df = _rows_for_subject_id(df, subj)
 
         larger_later_proportion = (subj_df.choice == "larger_later").mean()
@@ -359,16 +379,21 @@ def _compute_discount_acc(df: pd.DataFrame) -> pd.DataFrame:
             "omission_rate": calc_omission_rate(subj_df, "discountFix"),
         })
 
+    if not results:
+        return _empty_qc_subject_df()
     return pd.DataFrame(results).set_index("subject_id")
 
 
 def _compute_manip_acc(df: pd.DataFrame) -> pd.DataFrame:
     """Compute accuracy metrics for manipulation task."""
+    if df.empty or "worker_id" not in df.columns:
+        return _empty_qc_subject_df()
+
     trial_types = CONDITIONS["manipulationTask"]
 
     results = []
-    for subj in df.worker_id.unique():
-        subj = standardize_subject_numbers(subj)
+    for raw in df["worker_id"].dropna().unique():
+        subj = standardize_subject_numbers(raw)
         subj_df = _rows_for_subject_id(df, subj)
         rating_df = subj_df[(subj_df.trial_id == "current_rating") & (subj_df.trial_type != "no_stim")]
 
@@ -386,6 +411,8 @@ def _compute_manip_acc(df: pd.DataFrame) -> pd.DataFrame:
         row["omission_rate"] = calc_omission_rate(subj_df, "manipulationTask")
         results.append(row)
 
+    if not results:
+        return _empty_qc_subject_df()
     return pd.DataFrame(results).set_index("subject_id")
 
 

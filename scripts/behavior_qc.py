@@ -167,6 +167,11 @@ def load_task_data(behavior_data_path: str = BEHAVIOR_DATA) -> dict[str, pd.Data
                 dfs.append(_harmonize_cleaned_task_df(df, task))
             data[task] = pd.concat(dfs, ignore_index=True)
             print(f"  {task}: {len(files)} files, {len(data[task])} trials")
+            if data[task].empty:
+                print(
+                    f"  WARNING: {task}: no trials left after harmonize / stage filter "
+                    "(expect exp_stage test, or rows after trial_id 'experimentor_wait')."
+                )
         else:
             print(f"  {task}: no files found")
 
