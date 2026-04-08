@@ -18,8 +18,6 @@ from uh2_aim2.config import (
     STOP_TRIAL_TYPES,
     SECONDS_TO_MILLISECONDS,
 )
-
-
 # =============================================================================
 # CORE METRIC CALCULATIONS
 # =============================================================================
@@ -386,3 +384,15 @@ def _compute_manip_acc(df: pd.DataFrame) -> pd.DataFrame:
         results.append(row)
 
     return pd.DataFrame(results).set_index("subject_id")
+
+def keep_test_stage_rows(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Keep only rows with ``exp_stage == 'test'`` (case-insensitive).
+
+    Drops practice trials when ``exp_stage`` exists. If the column is missing,
+    returns ``df`` unchanged.
+    """
+    if "exp_stage" not in df.columns:
+        return df
+    stage = df["exp_stage"].astype(str).str.strip().str.lower()
+    return df.loc[stage == "test"].copy()
