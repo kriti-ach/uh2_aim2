@@ -9,13 +9,13 @@ import numpy as np
 import pandas as pd
 
 from uh2_aim2.config import (
+    BEHAVIOR_DATA,
     MAX_LARGER_LATER_PROPORTION,
     MIN_LARGER_LATER_PROPORTION,
     MOTOR_STOP_NONCRIT_OMISSION_MAX,
     OMISSION_RATE_MAX,
     STOP_SUCCESS_MAX,
     STOP_SUCCESS_MIN,
-    SUBJECT_DATA_PATH,
     TASKS,
     STOP_SIGNAL_GO_ACC,
     STOP_SIGNAL_GO_RT,
@@ -276,21 +276,18 @@ def check_missing_data(qc_df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(columns=["subject_id", "task"])
 
 
-def check_manip_pre_rating(subjects: list, data_path: str = SUBJECT_DATA_PATH) -> pd.DataFrame:
-    """Check if subjects have pre-rating data for manipulation task."""
+def check_manip_pre_rating(
+    subjects: list, processed_path: str = BEHAVIOR_DATA
+) -> pd.DataFrame:
+    """Check if subjects have pre-rating cleaned CSV in ``processed`` (e.g. ``1046_preRating_cleaned.csv``)."""
     exclusions = []
 
     for subj in subjects:
         subj_str = str(subj).lstrip("s")
-        task_path = os.path.join(data_path, subj_str, "task")
-
-        if not os.path.exists(task_path):
-            has_prerating = False
-        else:
-            has_prerating = (
-                os.path.exists(os.path.join(task_path, f"{subj_str}_preRating.csv")) or
-                os.path.exists(os.path.join(task_path, f"{subj_str}_prerating.csv"))
-            )
+        has_prerating = (
+            os.path.isfile(os.path.join(processed_path, f"{subj_str}_preRating_cleaned.csv"))
+            or os.path.isfile(os.path.join(processed_path, f"{subj_str}_prerating_cleaned.csv"))
+        )
 
         if not has_prerating:
             exclusions.append({

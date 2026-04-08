@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from glob import glob
 from typing import Any
 
 import numpy as np
@@ -22,7 +23,8 @@ from uh2_aim2.config import (
 
 
 def _task_csv_path(subject: str, task: str) -> str:
-    return os.path.join(BEHAVIOR_DATA, subject, "task", f"{subject}_{task}.csv")
+    """Flat processed layout: ``{subject}_{task}_cleaned.csv`` under ``BEHAVIOR_DATA``."""
+    return os.path.join(BEHAVIOR_DATA, f"{subject}_{task}_cleaned.csv")
 
 
 def _wait_span_seconds(
@@ -32,7 +34,7 @@ def _wait_span_seconds(
     Return span in **seconds** for rows whose trial_id matches ``trial_token``.
 
     - ``scanner_wait``: (max - min) ``time_elapsed`` (ms in CSV) → s.
-    - ``fmri_trigger_wait``: file order, last minus first ``time_elapsed`` (ms)
+    - ``fmri_trigger_wait``: file order, last minus **second** ``time_elapsed`` (ms)
       plus ``FMRI_TRIGGER_TR_MS``; single matching row uses ``block_duration`` (ms).
     """
     if trial_id_col not in df.columns:
@@ -63,11 +65,11 @@ def _wait_span_seconds(
         numeric = pd.Series(
             pd.to_numeric(pd.Series(sub_rows[time_col]), errors="coerce")
         )
-        first_te = numeric.iloc[0]
+        second_te = numeric.iloc[1]
         last_te = numeric.iloc[-1]
-        if pd.isna(first_te) or pd.isna(last_te):
-            return None, "time_elapsed not numeric on first or last fmri_trigger_wait row"
-        span_ms = float(last_te - first_te) + float(FMRI_TRIGGER_TR_MS)
+        if pd.isna(second_te) or pd.isna(last_te):
+            return None, "time_elapsed not numeric on second or last fmri_trigger_wait row"
+        span_ms = float(last_te - second_te) + float(FMRI_TRIGGER_TR_MS)
         span_s = span_ms / float(SECONDS_TO_MILLISECONDS)
         return span_s, None
 
@@ -103,18 +105,23 @@ def run_behavior_timing_qc(
     """
     For each subject × task, check wait-window span against config expectations.
 
-    If ``subjects`` is None, uses every directory under ``BEHAVIOR_DATA`` that
-    contains a ``task`` subdirectory. ``tasks`` defaults to ``TASKS``.
+    If ``subjects`` is None, infers subjects from ``*_cleaned.csv`` files in
+    ``BEHAVIOR_DATA``. ``tasks`` defaults to ``TASKS``.
     """
     task_list = list(tasks) if tasks is not None else list(TASKS)
 
     if subjects is None:
         subjects = []
         if os.path.isdir(BEHAVIOR_DATA):
-            for name in sorted(os.listdir(BEHAVIOR_DATA)):
-                p = os.path.join(BEHAVIOR_DATA, name, "task")
-                if os.path.isdir(p):
-                    subjects.append(name)
+            cleaned_files = glob(os.path.join(BEHAVIOR_DATA, "*_cleaned.csv"))
+            found: set[str] = set()
+            for path in cleaned_files:
+                stem = os.path.basename(path).replace("_cleaned.csv", "")
+                if "_" not in stem:
+                    continue
+                subj = stem.split("_", 1)[0]
+                found.add(subj)
+            subjects = sorted(found)
 
     rows: list[dict[str, Any]] = []
     for subject in subjects:

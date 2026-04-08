@@ -1,4 +1,4 @@
-"""Utilities for trimming behavioral event files."""
+"""Utilities for trimming BIDS behavioral event TSVs."""
 
 from __future__ import annotations
 
@@ -11,11 +11,8 @@ import pandas as pd
 from uh2_aim2.config import (
     BIDS_EVENT_FILES_TO_TRIM,
     BIDS_PATH,
-    EVENT_FILES_PATH,
-    EVENT_FILES_TO_TRIM,
     NO_RESPONSE,
     TRIMMED_EVENT_OUTPUT_BIDS_DIR,
-    TRIMMED_EVENT_OUTPUT_EVENT_FILES_DIR,
     TRIMMED_EVENT_OUTPUT_ROOT,
 )
 
@@ -39,32 +36,23 @@ def _load_targets(raw_targets: list[dict[str, str | int]]) -> list[TrimTarget]:
     ]
 
 
-def _is_match(file_path: Path, target: TrimTarget, source: str) -> bool:
-    """Check if a file belongs to the configured subject/task target."""
+def _is_bids_match(file_path: Path, target: TrimTarget) -> bool:
     file_name = file_path.name
     subject = target.subject_id
     task = target.task
-
-    if source == "event_files":
-        subject_match = (f"s{subject}" in file_name) or (subject in file_name)
-        task_match = task in file_name
-        return subject_match and task_match and file_name.endswith("_events.tsv")
-
     subject_match = f"sub-{subject}" in str(file_path)
     task_match = f"task-{task}" in file_name
     return subject_match and task_match and file_name.endswith("_events.tsv")
 
 
-def _find_matching_files(
+def _find_matching_bids_files(
     root_dir: Path,
     targets: list[TrimTarget],
-    source: str,
 ) -> list[tuple[Path, TrimTarget]]:
-    """Find all event files in root_dir matching configured trim targets."""
     matches: list[tuple[Path, TrimTarget]] = []
     for file_path in sorted(root_dir.rglob("*_events.tsv")):
         for target in targets:
-            if _is_match(file_path, target, source):
+            if _is_bids_match(file_path, target):
                 matches.append((file_path, target))
                 break
     return matches
@@ -115,43 +103,28 @@ def _write_trimmed(trimmed_df: pd.DataFrame, output_path: Path) -> None:
 
 def trim_configured_event_files(apply_to_source: bool = False) -> pd.DataFrame:
     """
-    Trim configured files in both event_files and BIDS trees.
+    Trim configured files under ``BIDS_PATH`` only.
 
-    Always writes preview outputs to `trimmed_event_file_outputs`.
-    If apply_to_source is True, also overwrites the original source files.
+    Always writes preview outputs to ``trimmed_event_file_outputs/bids_outputs``.
+    If apply_to_source is True, also overwrites the original BIDS files.
     """
-    event_targets = _load_targets(EVENT_FILES_TO_TRIM)
-    bids_targets = _load_targets(BIDS_EVENT_FILES_TO_TRIM)
-
-    event_root = Path(EVENT_FILES_PATH)
+    targets = _load_targets(BIDS_EVENT_FILES_TO_TRIM)
     bids_root = Path(BIDS_PATH)
     preview_root = Path(TRIMMED_EVENT_OUTPUT_ROOT)
-    preview_event_root = Path(TRIMMED_EVENT_OUTPUT_EVENT_FILES_DIR)
     preview_bids_root = Path(TRIMMED_EVENT_OUTPUT_BIDS_DIR)
 
     preview_root.mkdir(parents=True, exist_ok=True)
-    preview_event_root.mkdir(parents=True, exist_ok=True)
     preview_bids_root.mkdir(parents=True, exist_ok=True)
 
-    event_matches = _find_matching_files(event_root, event_targets, source="event_files")
-    bids_matches = _find_matching_files(bids_root, bids_targets, source="bids")
-
-    all_matches: list[tuple[str, Path, TrimTarget]] = [
-        ("event_files", source_file, target) for source_file, target in event_matches
-    ] + [
-        ("bids", source_file, target) for source_file, target in bids_matches
-    ]
+    matches = _find_matching_bids_files(bids_root, targets)
 
     records: list[dict[str, str | int | bool | None]] = []
 
-    for source, source_file, target in all_matches:
+    for source_file, target in matches:
         df = pd.read_csv(source_file, sep="\t")
         trimmed_df, trim_idx = _trim_dataframe(df)
 
-        if source == "event_files":
-            preview_path = _preview_output_path(source_file, event_root, preview_event_root)
-        else:
-            preview_path = _preview_output_path(source_file, bids_root, preview_bids_root)
+        preview_path = _preview_output_path(source_file, bids_root, preview_bids_root)
 
         _write_trimmed(trimmed_df, preview_path)
 
@@ -160,7 +133,7 @@ def trim_configured_event_files(apply_to_source: bool = False) -> pd.DataFrame:
 
         records.append(
             {
-                "source": source,
+                "source": "bids",
                 "subject_id": target.subject_id,
                 "task": target.task,
                 "source_file": str(source_file),

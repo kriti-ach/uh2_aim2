@@ -8,17 +8,16 @@ import os
 BASE_PATH = "/oak/stanford/groups/russpold/data/uh2/aim2"
 BEHAVIOR_PATH = os.path.join(BASE_PATH, "behavioral_data")
 BEHAVIOR_QC_PATH = os.path.join(BEHAVIOR_PATH, "behavioral_qc")
-EVENT_FILES_PATH = os.path.join(BEHAVIOR_PATH, "event_files")
-BEHAVIOR_DATA = os.path.join(BEHAVIOR_PATH, "aim2_final_sample")
+# Processed cleaned behavioral CSVs (e.g. ``1021_discountFix_cleaned.csv``, ``1046_preRating_cleaned.csv``)
+BEHAVIOR_DATA = os.path.join(BEHAVIOR_PATH, "processed")
 BEHAVIOR_TIMING_QC_CSV = os.path.join(BEHAVIOR_QC_PATH, "behavior_timing_qc.csv")
 BEHAVIOR_TIMING_QC_FLAGGED_CSV = os.path.join(BEHAVIOR_QC_PATH, "behavior_timing_qc_flagged.csv")
-SUBJECT_DATA_PATH = os.path.join(BEHAVIOR_PATH, "aim2_incl_dropped")
+# BIDS root (e.g. ``*events.tsv`` under ``sub-*/func/``)
 BIDS_PATH = os.path.join(BASE_PATH, "BIDS")
 
-# Project-local output path (scratch clone) for previewing trimmed files
+# Project-local output path (scratch clone) for previewing trimmed BIDS event files
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 TRIMMED_EVENT_OUTPUT_ROOT = os.path.join(PROJECT_ROOT, "trimmed_event_file_outputs")
-TRIMMED_EVENT_OUTPUT_EVENT_FILES_DIR = os.path.join(TRIMMED_EVENT_OUTPUT_ROOT, "event_files_outputs")
 TRIMMED_EVENT_OUTPUT_BIDS_DIR = os.path.join(TRIMMED_EVENT_OUTPUT_ROOT, "bids_outputs")
 FINAL_EXCLUSIONS_JSON_PATH = os.path.join(PROJECT_ROOT, "final_exclusions.json")
 
@@ -157,14 +156,12 @@ HISTOGRAM_METRICS = {
 
 HISTOGRAM_BINS = 20
 
-EVENT_FILES_TO_TRIM = [
+# Targets for ``scripts/trim_event_files.py``: BIDS ``sub-*/func/*_events.tsv`` only
+BIDS_EVENT_FILES_TO_TRIM = [
     {"subject_id": 5064, "task": "manipulationTask"},
     {"subject_id": 5387, "task": "manipulationTask"},
     {"subject_id": 1143, "task": "manipulationTask"},
 ]
-
-# Use the same configured subject/task list for both event_files and BIDS events
-BIDS_EVENT_FILES_TO_TRIM = EVENT_FILES_TO_TRIM
 
 # =============================================================================
 # GLOBAL MEAN SIGNAL PLOTS (NIfTI-based)

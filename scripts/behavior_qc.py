@@ -12,12 +12,14 @@ import json
 from glob import glob
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from uh2_aim2.config import (
+    BEHAVIOR_DATA,
     BEHAVIOR_QC_PATH,
-    EVENT_FILES_PATH,
     FINAL_EXCLUSIONS_JSON_PATH,
+    SECONDS_TO_MILLISECONDS,
     TASKS,
 )
 from uh2_aim2.utils.behavior_exclusion_utils import (
@@ -80,14 +82,86 @@ def _update_final_exclusions_json(exclusion_df: pd.DataFrame, json_path: str) ->
         json.dump(payload, f, indent=4)
 
 
-def load_task_data(event_files_path: str = EVENT_FILES_PATH) -> dict[str, pd.DataFrame]:
-    """Load behavioral event files for all tasks."""
+def _to_bool_series(series: pd.Series) -> pd.Series:
+    """Coerce mixed boolean/text/int columns to bool."""
+    text = series.astype(str).str.strip().str.lower()
+    true_set = {"true", "1", "yes", "y"}
+    return text.isin(true_set)
+
+
+def _harmonize_cleaned_task_df(df: pd.DataFrame, task: str) -> pd.DataFrame:
+    """
+    Harmonize cleaned behavioral CSVs to columns expected by QC utilities.
+    """
+    out = df.copy()
+
+    # Standardize worker id strings for subject parsing.
+    if "worker_id" in out.columns:
+        out["worker_id"] = out["worker_id"].astype(str).str.strip()
+
+    # Cleaned files store RT in milliseconds; QC utilities expect response_time in seconds.
+    if "response_time" not in out.columns and "rt" in out.columns:
+        rt_ms = pd.Series(pd.to_numeric(out["rt"], errors="coerce"), index=out.index)
+        out["response_time"] = rt_ms / float(SECONDS_TO_MILLISECONDS)
+
+    # Stop-signal delays are in milliseconds in cleaned files.
+    if "SS_delay" in out.columns:
+        ssd_ms = pd.Series(pd.to_numeric(out["SS_delay"], errors="coerce"), index=out.index)
+        out["SS_delay"] = ssd_ms / float(SECONDS_TO_MILLISECONDS)
+
+    if task == "stopSignal" and "SS_trial_type" in out.columns:
+        ss_type = out["SS_trial_type"].astype(str).str.strip().str.lower()
+        stopped = _to_bool_series(pd.Series(out["stopped"], index=out.index)) if "stopped" in out.columns else pd.Series(False, index=out.index)
+        trial_type = pd.Series("", index=out.index, dtype=object)
+        trial_type.loc[ss_type == "go"] = "go"
+        trial_type.loc[(ss_type == "stop") & stopped] = "stop_success"
+        trial_type.loc[(ss_type == "stop") & (~stopped)] = "stop_failure"
+        out["trial_type"] = trial_type
+
+    if task == "motorSelectiveStop" and {"condition", "SS_trial_type"}.issubset(out.columns):
+        cond = out["condition"].astype(str).str.strip().str.lower()
+        ss_type = out["SS_trial_type"].astype(str).str.strip().str.lower()
+        stopped = _to_bool_series(pd.Series(out["stopped"], index=out.index)) if "stopped" in out.columns else pd.Series(False, index=out.index)
+
+        trial_type = pd.Series("", index=out.index, dtype=object)
+        trial_type.loc[(cond == "go") & (ss_type == "go")] = "crit_go"
+        trial_type.loc[(cond == "ignore") & (ss_type == "go")] = "noncrit_nosignal"
+        trial_type.loc[(cond == "ignore") & (ss_type == "stop")] = "noncrit_signal"
+        trial_type.loc[(cond == "stop") & (ss_type == "stop") & stopped] = "crit_stop_success"
+        trial_type.loc[(cond == "stop") & (ss_type == "stop") & (~stopped)] = "crit_stop_failure"
+        # Fallback for unexpected combinations.
+        trial_type.loc[(cond == "go") & (trial_type == "")] = "crit_go"
+        out["trial_type"] = trial_type
+
+    if task == "manipulationTask":
+        if {"trial_id", "stim_type", "which_cue"}.issubset(out.columns):
+            is_rating = out["trial_id"].astype(str).str.strip() == "current_rating"
+            stim = out["stim_type"].astype(str).str.strip().str.lower()
+            cue = out["which_cue"].astype(str).str.strip().str.upper()
+
+            derived = pd.Series(out.get("trial_type", pd.Series("", index=out.index)), index=out.index, dtype=object)
+            derived.loc[is_rating & (cue == "LATER") & (stim == "smoking")] = "future_valence"
+            derived.loc[is_rating & (cue == "LATER") & (stim == "neutral")] = "future_neutral"
+            derived.loc[is_rating & (cue == "NOW") & (stim == "smoking")] = "present_valence"
+            derived.loc[is_rating & (cue == "NOW") & (stim == "neutral")] = "present_neutral"
+            derived.loc[is_rating & derived.astype(str).str.strip().eq("")] = "no_stim"
+            out["trial_type"] = derived
+
+    return out
+
+
+def load_task_data(behavior_data_path: str = BEHAVIOR_DATA) -> dict[str, pd.DataFrame]:
+    """Load cleaned behavioral CSV files for all tasks."""
     data = {}
 
     for task in TASKS:
-        files = glob(os.path.join(event_files_path, f"*{task}*_events.tsv"))
+        files = glob(os.path.join(behavior_data_path, f"*_{task}_cleaned.csv"))
         if files:
-            data[task] = pd.concat([pd.read_csv(f, sep="\t") for f in files], ignore_index=True)
+            dfs = []
+            for f in files:
+                df = pd.read_csv(f)
+                dfs.append(_harmonize_cleaned_task_df(df, task))
+            data[task] = pd.concat(dfs, ignore_index=True)
             print(f"  {task}: {len(files)} files, {len(data[task])} trials")
         else:
             print(f"  {task}: no files found")
@@ -96,7 +170,7 @@ def load_task_data(event_files_path: str = EVENT_FILES_PATH) -> dict[str, pd.Dat
 
 
 def run_qc_pipeline(
-    event_files_path: str = EVENT_FILES_PATH,
+    behavior_data_path: str = BEHAVIOR_DATA,
     output_path: str = BEHAVIOR_QC_PATH,
 ) -> tuple[dict[str, pd.DataFrame], pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
@@ -117,7 +191,7 @@ def run_qc_pipeline(
 
     # Load data
     print("\n[1/6] Loading data...")
-    task_data = load_task_data(event_files_path)
+    task_data = load_task_data(behavior_data_path)
 
     # Compute QC metrics (both RT and accuracy)
     print("\n[2/6] Computing QC metrics...")

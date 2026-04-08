@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Trim configured event files for both event_files and BIDS trees."""
+"""Trim configured BIDS ``*events.tsv`` files (see ``BIDS_EVENT_FILES_TO_TRIM``)."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--apply",
         action="store_true",
-        help="Also overwrite original files in EVENT_FILES_PATH and BIDS_PATH.",
+        help="Also overwrite original files under BIDS_PATH.",
     )
     return parser
 
