@@ -229,6 +229,22 @@ def standardize_subject_numbers(subj: str | int) -> int:
     return int(subj)
 
 
+def _rows_for_subject_id(df: pd.DataFrame, subj_int: int) -> pd.DataFrame:
+    """
+    Rows for one participant given ``worker_id`` variants in cleaned files.
+
+    Some files use ``s1021``, others plain ``1021``; string/int mismatch used to
+    yield an empty subset and bogus metrics (e.g. omission_rate == 1.0).
+    """
+    w_raw = pd.Series(df["worker_id"], index=df.index)
+    w = w_raw.astype(str).str.strip()
+    token = str(subj_int)
+    str_mask = w.isin({token, f"s{token}", f"sub-{token}"})
+    num = pd.to_numeric(w_raw, errors="coerce")
+    num_mask = num == float(subj_int)
+    return df.loc[str_mask | num_mask]
+
+
 def compute_qc_summary(df: pd.DataFrame, task: str) -> pd.DataFrame:
     """Compute both RT and accuracy QC metrics for a task."""
     rt_df = compute_rt_summary(df, task)
@@ -253,7 +269,7 @@ def compute_rt_summary(df: pd.DataFrame, task: str) -> pd.DataFrame:
     results = []
     for subj in df.worker_id.unique():
         subj = standardize_subject_numbers(subj)
-        subj_df = df[df.worker_id == f"s{subj}"] if f"s{subj}" in df.worker_id.values else df[df.worker_id == subj]
+        subj_df = _rows_for_subject_id(df, subj)
         row = {"subject_id": subj}
 
         for cond in conditions:
@@ -288,7 +304,7 @@ def _compute_standard_acc(df: pd.DataFrame, task: str) -> pd.DataFrame:
     results = []
     for subj in df.worker_id.unique():
         subj = standardize_subject_numbers(subj)
-        subj_df = df[df.worker_id == f"s{subj}"] if f"s{subj}" in df.worker_id.values else df[df.worker_id == subj]
+        subj_df = _rows_for_subject_id(df, subj)
         row = {"subject_id": subj}
 
         # Accuracy by condition
@@ -328,7 +344,7 @@ def _compute_discount_acc(df: pd.DataFrame) -> pd.DataFrame:
     results = []
     for subj in df.worker_id.unique():
         subj = standardize_subject_numbers(subj)
-        subj_df = df[df.worker_id == f"s{subj}"] if f"s{subj}" in df.worker_id.values else df[df.worker_id == subj]
+        subj_df = _rows_for_subject_id(df, subj)
 
         larger_later_proportion = (subj_df.choice == "larger_later").mean()
         k, r2, r_value_reason = calc_discount_rate_glm(subj_df, subject_id=subj)
@@ -352,7 +368,7 @@ def _compute_manip_acc(df: pd.DataFrame) -> pd.DataFrame:
     results = []
     for subj in df.worker_id.unique():
         subj = standardize_subject_numbers(subj)
-        subj_df = df[df.worker_id == f"s{subj}"] if f"s{subj}" in df.worker_id.values else df[df.worker_id == subj]
+        subj_df = _rows_for_subject_id(df, subj)
         rating_df = subj_df[(subj_df.trial_id == "current_rating") & (subj_df.trial_type != "no_stim")]
 
         row = {"subject_id": subj}
