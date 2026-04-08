@@ -29,8 +29,7 @@ from uh2_aim2.utils.behavior_exclusion_utils import (
 )
 from uh2_aim2.utils.behavior_flagging_utils import run_all_flagging_checks
 from uh2_aim2.utils.behavior_plot_utils import plot_all_task_histograms
-from uh2_aim2.utils.behavior_qc_utils import remove_practice_stage_rows
-from uh2_aim2.utils.behavior_qc_utils import compute_qc_summary
+from uh2_aim2.utils.behavior_qc_utils import compute_qc_summary, remove_practice_stage_rows
 
 
 def _format_subject_id(subject_value: object) -> str:
@@ -94,8 +93,8 @@ def _harmonize_cleaned_task_df(df: pd.DataFrame, task: str) -> pd.DataFrame:
     """
     Harmonize cleaned behavioral CSVs to columns expected by QC utilities.
 
-    After harmonization, restricts to ``exp_stage == 'test'`` when that column
-    exists (excludes practice).
+    After harmonization, restricts trials via :func:`remove_practice_stage_rows`
+    (``exp_stage == test`` when present, else rows after ``experimentor_wait``).
     """
     out = df.copy()
 

@@ -8,8 +8,10 @@ import os
 BASE_PATH = "/oak/stanford/groups/russpold/data/uh2/aim2"
 BEHAVIOR_PATH = os.path.join(BASE_PATH, "behavioral_data")
 BEHAVIOR_QC_PATH = os.path.join(BEHAVIOR_PATH, "behavioral_qc")
-# Processed cleaned behavioral CSVs (e.g. ``1021_discountFix_cleaned.csv``, ``1046_preRating_cleaned.csv``)
+# Processed cleaned behavioral CSVs for behavioral QC (e.g. ``1021_discountFix_cleaned.csv``)
 BEHAVIOR_DATA = os.path.join(BEHAVIOR_PATH, "processed")
+# Final analysis sample layout: ``{subject}/task/{subject}_{task}.csv`` (not used by QC scripts)
+BEHAVIOR_SAMPLE_DATA = os.path.join(BEHAVIOR_PATH, "aim2_final_sample")
 BEHAVIOR_TIMING_QC_CSV = os.path.join(BEHAVIOR_QC_PATH, "behavior_timing_qc.csv")
 BEHAVIOR_TIMING_QC_FLAGGED_CSV = os.path.join(BEHAVIOR_QC_PATH, "behavior_timing_qc_flagged.csv")
 # BIDS root (e.g. ``*events.tsv`` under ``sub-*/func/``)
@@ -85,6 +87,8 @@ BEHAVIOR_TIMING_NOMINAL_WAIT_DURATION_S = 10.88
 MANIPULATION_SCANNER_WAIT_TRIAL_ID = "scanner_wait"
 MANIPULATION_SCANNER_WAIT_DURATION_S = BEHAVIOR_TIMING_NOMINAL_WAIT_DURATION_S
 FMRI_TRIGGER_WAIT_TRIAL_ID = "fmri_trigger_wait"
+# When ``exp_stage`` is missing, QC keeps only rows after this ``trial_id`` (file order).
+EXPERIMENTOR_WAIT_TRIAL_ID = "experimentor_wait"
 FMRI_TRIGGER_WAIT_DURATION_S = BEHAVIOR_TIMING_NOMINAL_WAIT_DURATION_S
 FMRI_TRIGGER_WAIT_TASKS = ("discountFix", "stopSignal", "motorSelectiveStop")
 FMRI_TRIGGER_TR_MS = 680

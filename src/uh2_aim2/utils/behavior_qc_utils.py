@@ -1,5 +1,6 @@
 """Utility functions for behavioral QC calculations using vectorized pandas operations."""
 
+import os
 from math import ceil, floor
 
 import numpy as np
@@ -8,8 +9,10 @@ import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
 from uh2_aim2.config import (
+    BEHAVIOR_SAMPLE_DATA,
     CONDITIONS,
     CONDITION_COLUMN,
+    EXPERIMENTOR_WAIT_TRIAL_ID,
     GO_TRIAL_TYPES,
     MAX_GO_RT,
     MAX_SSD,
@@ -385,8 +388,33 @@ def _compute_manip_acc(df: pd.DataFrame) -> pd.DataFrame:
 
     return pd.DataFrame(results).set_index("subject_id")
 
+
+def final_sample_task_csv_path(subject: str | int, task: str) -> str:
+    """Path to one task file under ``BEHAVIOR_SAMPLE_DATA`` (analysis sample, not QC input)."""
+    sid = str(standardize_subject_numbers(subject))
+    return os.path.join(BEHAVIOR_SAMPLE_DATA, sid, "task", f"{sid}_{task}.csv")
+
+
 def remove_practice_stage_rows(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Remove practice trials from the dataframe.
+    Restrict rows used for QC.
+
+    If ``exp_stage`` exists, keep only ``exp_stage`` normalized to ``test``.
+    Otherwise, if ``trial_id`` exists, keep rows strictly after the first
+    ``trial_id == EXPERIMENTOR_WAIT_TRIAL_ID`` in file order. If that marker is
+    absent, return the dataframe unchanged. If neither column exists, return
+    unchanged.
     """
-    return df[df.exp_stage != "practice"]
+    if df.empty:
+        return df
+    if "exp_stage" in df.columns:
+        stage = df["exp_stage"].astype(str).str.strip().str.lower()
+        return df.loc[stage == "test"].copy()
+    if "trial_id" in df.columns:
+        tid = df["trial_id"].astype(str).str.strip()
+        wait = (tid == EXPERIMENTOR_WAIT_TRIAL_ID).to_numpy()
+        if not wait.any():
+            return df.copy()
+        first_pos = int(np.flatnonzero(wait)[0])
+        return df.iloc[first_pos + 1 :].copy()
+    return df.copy()
