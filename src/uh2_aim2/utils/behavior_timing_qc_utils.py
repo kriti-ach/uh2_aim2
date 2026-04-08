@@ -20,7 +20,7 @@ from uh2_aim2.config import (
     SECONDS_TO_MILLISECONDS,
     TASKS,
 )
-from uh2_aim2.utils.behavior_qc_utils import keep_test_stage_rows
+from uh2_aim2.utils.behavior_qc_utils import remove_practice_stage_rows
 
 
 def _task_csv_path(subject: str, task: str) -> str:
@@ -148,7 +148,7 @@ def run_behavior_timing_qc(
                 continue
 
             try:
-                df = keep_test_stage_rows(pd.read_csv(path))
+                df = remove_practice_stage_rows(pd.read_csv(path))
             except (OSError, UnicodeDecodeError, pd.errors.ParserError, ValueError) as exc:
                 rows.append(
                     {

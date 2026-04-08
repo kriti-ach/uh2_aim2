@@ -29,7 +29,7 @@ from uh2_aim2.utils.behavior_exclusion_utils import (
 )
 from uh2_aim2.utils.behavior_flagging_utils import run_all_flagging_checks
 from uh2_aim2.utils.behavior_plot_utils import plot_all_task_histograms
-from uh2_aim2.utils.behavior_qc_utils import keep_test_stage_rows
+from uh2_aim2.utils.behavior_qc_utils import remove_practice_stage_rows
 from uh2_aim2.utils.behavior_qc_utils import compute_qc_summary
 
 
@@ -151,7 +151,7 @@ def _harmonize_cleaned_task_df(df: pd.DataFrame, task: str) -> pd.DataFrame:
             derived.loc[is_rating & derived.astype(str).str.strip().eq("")] = "no_stim"
             out["trial_type"] = derived
 
-    out = keep_test_stage_rows(out)
+    out = remove_practice_stage_rows(out)
     return out
 
 

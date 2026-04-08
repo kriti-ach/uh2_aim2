@@ -385,14 +385,8 @@ def _compute_manip_acc(df: pd.DataFrame) -> pd.DataFrame:
 
     return pd.DataFrame(results).set_index("subject_id")
 
-def keep_test_stage_rows(df: pd.DataFrame) -> pd.DataFrame:
+def remove_practice_stage_rows(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Keep only rows with ``exp_stage == 'test'`` (case-insensitive).
-
-    Drops practice trials when ``exp_stage`` exists. If the column is missing,
-    returns ``df`` unchanged.
+    Remove practice trials from the dataframe.
     """
-    if "exp_stage" not in df.columns:
-        return df
-    stage = df["exp_stage"].astype(str).str.strip().str.lower()
-    return df.loc[stage == "test"].copy()
+    return df[df.exp_stage != "practice"]
