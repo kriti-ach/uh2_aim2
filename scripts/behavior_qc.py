@@ -94,7 +94,8 @@ def _harmonize_cleaned_task_df(df: pd.DataFrame, task: str) -> pd.DataFrame:
     Harmonize cleaned behavioral CSVs to columns expected by QC utilities.
 
     After harmonization, restricts trials via :func:`remove_practice_stage_rows`
-    (``exp_stage == test`` when present, else rows after ``experimentor_wait``).
+    (drops ``exp_stage == practice`` when that column exists; if it is absent,
+    keeps rows after ``trial_id == 'experimentor_wait'``).
     """
     out = df.copy()
 
@@ -170,7 +171,7 @@ def load_task_data(behavior_data_path: str = BEHAVIOR_DATA) -> dict[str, pd.Data
             if data[task].empty:
                 print(
                     f"  WARNING: {task}: no trials left after harmonize / stage filter "
-                    "(expect exp_stage test, or rows after trial_id 'experimentor_wait')."
+                    "(check exp_stage vs practice, or rows after trial_id 'experimentor_wait')."
                 )
         else:
             print(f"  {task}: no files found")

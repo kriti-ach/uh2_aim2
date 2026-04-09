@@ -426,17 +426,21 @@ def remove_practice_stage_rows(df: pd.DataFrame) -> pd.DataFrame:
     """
     Restrict rows used for QC.
 
-    If ``exp_stage`` exists, keep only ``exp_stage`` normalized to ``test``.
-    Otherwise, if ``trial_id`` exists, keep rows strictly after the first
-    ``trial_id == EXPERIMENTOR_WAIT_TRIAL_ID`` in file order. If that marker is
-    absent, return the dataframe unchanged. If neither column exists, return
-    unchanged.
+    If ``exp_stage`` exists, drop rows whose value normalizes to ``practice``
+    (case-insensitive); all other rows are kept (including NaN / non-test labels).
+    If ``exp_stage`` is absent and ``trial_id`` exists, keep rows strictly after
+    the first ``trial_id == EXPERIMENTOR_WAIT_TRIAL_ID`` in file order. If that
+    marker is absent, return the dataframe unchanged. If neither column exists,
+    return unchanged.
     """
     if df.empty:
         return df
     if "exp_stage" in df.columns:
-        stage = df["exp_stage"].astype(str).str.strip().str.lower()
-        return df.loc[stage == "test"].copy()
+        stage = df["exp_stage"]
+        is_practice = stage.notna() & (
+            stage.astype(str).str.strip().str.lower() == "practice"
+        )
+        return df.loc[~is_practice].copy()
     if "trial_id" in df.columns:
         tid = df["trial_id"].astype(str).str.strip()
         wait = (tid == EXPERIMENTOR_WAIT_TRIAL_ID).to_numpy()

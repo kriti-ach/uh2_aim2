@@ -87,7 +87,7 @@ BEHAVIOR_TIMING_NOMINAL_WAIT_DURATION_S = 10.88
 MANIPULATION_SCANNER_WAIT_TRIAL_ID = "scanner_wait"
 MANIPULATION_SCANNER_WAIT_DURATION_S = BEHAVIOR_TIMING_NOMINAL_WAIT_DURATION_S
 FMRI_TRIGGER_WAIT_TRIAL_ID = "fmri_trigger_wait"
-# When ``exp_stage`` is missing, QC keeps only rows after this ``trial_id`` (file order).
+# When ``exp_stage`` is absent, QC keeps only rows after this ``trial_id`` (file order).
 EXPERIMENTOR_WAIT_TRIAL_ID = "experimentor_wait"
 FMRI_TRIGGER_WAIT_DURATION_S = BEHAVIOR_TIMING_NOMINAL_WAIT_DURATION_S
 FMRI_TRIGGER_WAIT_TASKS = ("discountFix", "stopSignal", "motorSelectiveStop")
