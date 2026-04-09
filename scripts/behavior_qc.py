@@ -19,9 +19,13 @@ from uh2_aim2.config import (
     BEHAVIOR_DATA,
     BEHAVIOR_QC_PATH,
     FINAL_EXCLUSIONS_JSON_PATH,
+    NO_RESPONSE,
     SECONDS_TO_MILLISECONDS,
     TASKS,
 )
+
+# jsPsych key codes -> Likert 1–5 in cleaned manipulationTask CSVs (thumb … pinky).
+_MANIP_RATING_KEYCODE_TO_LIKERT = {66: 1, 89: 2, 71: 3, 82: 4, 77: 5}
 from uh2_aim2.utils.behavior_exclusion_utils import (
     run_all_exclusion_checks,
     summarize_exclusions,
@@ -142,14 +146,34 @@ def _harmonize_cleaned_task_df(df: pd.DataFrame, task: str) -> pd.DataFrame:
             is_rating = out["trial_id"].astype(str).str.strip() == "current_rating"
             stim = out["stim_type"].astype(str).str.strip().str.lower()
             cue = out["which_cue"].astype(str).str.strip().str.upper()
+            # Cleaned exports use ``food`` for smoking/valence images; some pipelines use ``smoking``.
+            valence_stim = stim.isin(("smoking", "food"))
 
-            derived = pd.Series(out.get("trial_type", pd.Series("", index=out.index)), index=out.index, dtype=object)
-            derived.loc[is_rating & (cue == "LATER") & (stim == "smoking")] = "future_valence"
-            derived.loc[is_rating & (cue == "LATER") & (stim == "neutral")] = "future_neutral"
-            derived.loc[is_rating & (cue == "NOW") & (stim == "smoking")] = "present_valence"
-            derived.loc[is_rating & (cue == "NOW") & (stim == "neutral")] = "present_neutral"
-            derived.loc[is_rating & derived.astype(str).str.strip().eq("")] = "no_stim"
-            out["trial_type"] = derived
+            qc_label = pd.Series(np.nan, index=out.index, dtype=object)
+            qc_label.loc[is_rating & (cue == "LATER") & valence_stim] = "future_valence"
+            qc_label.loc[is_rating & (cue == "LATER") & (stim == "neutral")] = "future_neutral"
+            qc_label.loc[is_rating & (cue == "NOW") & valence_stim] = "present_valence"
+            qc_label.loc[is_rating & (cue == "NOW") & (stim == "neutral")] = "present_neutral"
+            qc_label.loc[is_rating & qc_label.isna()] = "no_stim"
+
+            base_tt = (
+                out["trial_type"].copy()
+                if "trial_type" in out.columns
+                else pd.Series("", index=out.index, dtype=object)
+            )
+            out["trial_type"] = base_tt
+            out.loc[is_rating, "trial_type"] = qc_label.loc[is_rating]
+
+            # Cleaned CSV stores key codes; BIDS/events often store 1–5. Map codes for QC stats only.
+            if "response" in out.columns:
+                rnum = pd.to_numeric(out["response"], errors="coerce")
+                likert = pd.Series(np.nan, index=out.index, dtype=float)
+                for key_code, scale_val in _MANIP_RATING_KEYCODE_TO_LIKERT.items():
+                    likert = likert.where(rnum != key_code, float(scale_val))
+                already_scale = rnum.notna() & rnum.ge(1) & rnum.le(5)
+                likert = likert.where(~already_scale, rnum)
+                likert = likert.where(rnum != NO_RESPONSE, np.nan)
+                out.loc[is_rating, "response"] = likert.loc[is_rating]
 
     out = remove_practice_stage_rows(out)
     return out

@@ -34,7 +34,10 @@ def calc_omission_rate(df: pd.DataFrame, task: str) -> float:
     task_map = {
         "stopSignal": lambda d: d[d.trial_type == "go"],
         "motorSelectiveStop": lambda d: d[d.trial_type.isin(GO_TRIAL_TYPES["motorSelectiveStop"])],
-        "manipulationTask": lambda d: d[(d.trial_id == "current_rating") & (d.trial_type != "no_stim")],
+        "manipulationTask": lambda d: d[
+            (d["trial_id"].astype(str).str.strip() == "current_rating")
+            & (d.trial_type != "no_stim")
+        ],
     }
 
     trials = task_map.get(task, lambda d: d)(df)
@@ -395,7 +398,8 @@ def _compute_manip_acc(df: pd.DataFrame) -> pd.DataFrame:
     for raw in df["worker_id"].dropna().unique():
         subj = standardize_subject_numbers(raw)
         subj_df = _rows_for_subject_id(df, subj)
-        rating_df = subj_df[(subj_df.trial_id == "current_rating") & (subj_df.trial_type != "no_stim")]
+        tid = subj_df["trial_id"].astype(str).str.strip()
+        rating_df = subj_df[(tid == "current_rating") & (subj_df.trial_type != "no_stim")]
 
         row = {"subject_id": subj}
 
