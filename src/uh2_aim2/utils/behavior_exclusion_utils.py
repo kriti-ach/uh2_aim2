@@ -10,6 +10,7 @@ import pandas as pd
 
 from uh2_aim2.config import (
     BEHAVIOR_DATA,
+    BIDS_EVENT_FILES_TO_TRIM,
     MAX_LARGER_LATER_PROPORTION,
     MIN_LARGER_LATER_PROPORTION,
     MOTOR_STOP_NONCRIT_OMISSION_MAX,
@@ -236,6 +237,40 @@ def check_omission_rate(qc_df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(exclusions)
 
 
+def _bids_trim_subject_task_pairs() -> set[tuple[int, str]]:
+    """(subject_id, task) pairs configured for BIDS ``*_events.tsv`` trimming."""
+    pairs: set[tuple[int, str]] = set()
+    for entry in BIDS_EVENT_FILES_TO_TRIM:
+        raw = entry["subject_id"]
+        sid_str = str(raw).replace("sub-", "").replace("s", "")
+        pairs.add((int(sid_str), str(entry["task"])))
+    return pairs
+
+
+def drop_omission_exclusions_for_bids_trim_targets(exclusion_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Remove ``omission_rate`` exclusion rows when that subject/task is listed in
+    ``BIDS_EVENT_FILES_TO_TRIM`` (event file will be trimmed instead).
+    """
+    if exclusion_df.empty or not BIDS_EVENT_FILES_TO_TRIM:
+        return exclusion_df
+
+    trim_pairs = _bids_trim_subject_task_pairs()
+
+    def _in_trim(row: pd.Series) -> bool:
+        sid = pd.to_numeric(row["subject_id"], errors="coerce")
+        if pd.isna(sid):
+            return False
+        try:
+            return (int(sid), str(row["task"])) in trim_pairs
+        except (TypeError, ValueError):
+            return False
+
+    in_trim = exclusion_df.apply(_in_trim, axis=1)
+    drop = exclusion_df["metric"].eq("omission_rate") & in_trim
+    return exclusion_df.loc[~drop].reset_index(drop=True)
+
+
 def check_missing_data(qc_df: pd.DataFrame) -> pd.DataFrame:
     """
     Check for missing data (NaN values in key metrics).
@@ -328,6 +363,12 @@ def run_all_exclusion_checks(qc_df: pd.DataFrame) -> pd.DataFrame:
     if not exclusions.empty:
         exclusions = exclusions.drop_duplicates()
         exclusions = exclusions.copy()
+        exclusions = drop_omission_exclusions_for_bids_trim_targets(exclusions)
+        if exclusions.empty:
+            exclusions["failed_multiple_criteria"] = pd.Series(dtype=bool)
+            exclusions["other_criteria_failed"] = pd.Series(dtype=str)
+            return exclusions
+
         exclusions["criterion_label"] = (
             exclusions["metric"].astype(str) + " (" + exclusions["threshold"].astype(str) + ")"
         )
