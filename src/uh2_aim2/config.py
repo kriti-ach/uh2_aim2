@@ -17,9 +17,9 @@ BEHAVIOR_TIMING_QC_FLAGGED_CSV = os.path.join(BEHAVIOR_QC_PATH, "behavior_timing
 # BIDS root (e.g. ``*events.tsv`` under ``sub-*/func/``)
 BIDS_PATH = os.path.join(BASE_PATH, "BIDS")
 
-# Flywheel project ``russpold/uh2_aim2`` (group_id / project_label).
+# Flywheel project ``russpold/uh2aim2`` (group_id / project_label).
 FLYWHEEL_GROUP_ID = "russpold"
-FLYWHEEL_PROJECT_LABEL = "uh2_aim2"
+FLYWHEEL_PROJECT_LABEL = "uh2aim2"
 # ``flywheel.Client()`` reads credentials from the runtime environment / session (same pattern as
 # ``rdoc_fmri_quality_control``), e.g. ``FW_API_KEY`` on Sherlock or ``flywheel login``.
 
