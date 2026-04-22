@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 """
-List ``num_slices`` (and file paths) for JSON sidecars under BIDS paths that
-contain ``ssg`` in the relative path (e.g. ``...task-motorSelectiveStop_run-1_ssg...``).
-Skips ``qa.json`` / ``*_qa.json``.
+List ``num_slices`` (and file paths) for JSON sidecars from a **Flywheel export**
+tree (not Oak BIDS). Any relative path containing ``ssg`` is included, e.g.
+``...task-motorSelectiveStop_run-1_ssg...``. Skips ``qa.json`` / ``*_qa.json``.
+
+Default root: env ``UH2_FLYWHEEL_JSON_ROOT``, else ``~/flywheel/russpold/uh2_aim2`` (see ``config.FLYWHEEL_*``).
 
 Writes CSV: relative_path, subject, task, run, acq, num_slices
 (some entity columns may be empty if the filename is nonstandard).
@@ -38,10 +40,10 @@ def _num_slices_from_json(data: object) -> object:
     return None
 
 
-def _iter_ssg_json_files(bids_root: Path) -> list[Path]:
+def _iter_ssg_json_files(scan_root: Path) -> list[Path]:
     out: list[Path] = []
-    for p in sorted(bids_root.rglob("*.json")):
-        rel = p.relative_to(bids_root).as_posix()
+    for p in sorted(scan_root.rglob("*.json")):
+        rel = p.relative_to(scan_root).as_posix()
         if "ssg" not in rel.lower():
             continue
         name = p.name.lower()
@@ -53,13 +55,13 @@ def _iter_ssg_json_files(bids_root: Path) -> list[Path]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Export num_slices from *ssg* JSON (excluding qa.json) to CSV."
+        description="Export num_slices from Flywheel *ssg* JSON (excluding qa.json) to CSV."
     )
     parser.add_argument(
-        "--bids-root",
+        "--root",
         type=Path,
         default=None,
-        help="BIDS root (default: uh2_aim2.config.BIDS_PATH)",
+        help="Flywheel export directory (default: UH2_FLYWHEEL_JSON_ROOT or ~/flywheel/russpold/uh2_aim2)",
     )
     parser.add_argument(
         "-o",
@@ -70,18 +72,22 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    if args.bids_root is None:
-        from uh2_aim2.config import BIDS_PATH
-
-        bids_root = Path(BIDS_PATH)
+    if args.root is not None:
+        scan_root = args.root
     else:
-        bids_root = args.bids_root
+        from uh2_aim2.config import FLYWHEEL_JSON_EXPORT_PATH
 
-    if not bids_root.is_dir():
-        print(f"Not a directory: {bids_root}", file=sys.stderr)
+        scan_root = Path(FLYWHEEL_JSON_EXPORT_PATH)
+
+    if not scan_root.is_dir():
+        print(
+            f"Not a directory: {scan_root}\n"
+            "Set UH2_FLYWHEEL_JSON_ROOT or pass --root to your Flywheel export for russpold/uh2_aim2.",
+            file=sys.stderr,
+        )
         return 1
 
-    files = _iter_ssg_json_files(bids_root)
+    files = _iter_ssg_json_files(scan_root)
     fieldnames = [
         "relative_path",
         "sub",
@@ -95,7 +101,7 @@ def main() -> int:
     rows: list[dict[str, object]] = []
 
     for p in files:
-        rel = p.relative_to(bids_root).as_posix()
+        rel = p.relative_to(scan_root).as_posix()
         try:
             data = json.loads(p.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as e:

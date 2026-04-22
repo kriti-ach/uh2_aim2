@@ -17,6 +17,19 @@ BEHAVIOR_TIMING_QC_FLAGGED_CSV = os.path.join(BEHAVIOR_QC_PATH, "behavior_timing
 # BIDS root (e.g. ``*events.tsv`` under ``sub-*/func/``)
 BIDS_PATH = os.path.join(BASE_PATH, "BIDS")
 
+# Flywheel project ``russpold/uh2_aim2`` (group_id / project_label).
+FLYWHEEL_GROUP_ID = "russpold"
+FLYWHEEL_PROJECT_LABEL = "uh2_aim2"
+
+# Local Flywheel export root for acquisition JSON (not Oak BIDS). Override with ``UH2_FLYWHEEL_JSON_ROOT``.
+_default_flywheel_json_root = os.path.join(
+    os.path.expanduser("~"),
+    "flywheel",
+    FLYWHEEL_GROUP_ID,
+    FLYWHEEL_PROJECT_LABEL,
+)
+FLYWHEEL_JSON_EXPORT_PATH = os.environ.get("UH2_FLYWHEEL_JSON_ROOT") or _default_flywheel_json_root
+
 # Project-local output path (scratch clone) for previewing trimmed BIDS event files
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 TRIMMED_EVENT_OUTPUT_ROOT = os.path.join(PROJECT_ROOT, "trimmed_event_file_outputs")
