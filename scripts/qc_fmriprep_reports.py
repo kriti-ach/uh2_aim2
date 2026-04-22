@@ -33,7 +33,7 @@ def _normalize_subject(subject_value: object) -> str:
 
 def _update_final_exclusions_json(metrics_df, json_path: str) -> int:
     """
-    Update `fmriprep_exclusions` in final_exclusions.json from fMRIPrep QC metrics.
+    Update `fmriprep_exclusions` in exclusions.json (FINAL_EXCLUSIONS_JSON_PATH) from fMRIPrep QC metrics.
 
     Logic:
     - rest scans: exclude when fd_mean_mm > 0.2

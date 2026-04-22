@@ -51,7 +51,7 @@ def _format_subject_id(subject_value: object) -> str:
 
 def _update_final_exclusions_json(exclusion_df: pd.DataFrame, json_path: str) -> None:
     """
-    Replace `behavioral_exclusions` in final_exclusions.json from current QC output.
+    Replace `behavioral_exclusions` in ``exclusions.json`` (``FINAL_EXCLUSIONS_JSON_PATH``) from current QC output.
 
     Keeps all other top-level exclusion sections unchanged.
     """

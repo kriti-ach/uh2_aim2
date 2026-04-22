@@ -21,7 +21,8 @@ BIDS_PATH = os.path.join(BASE_PATH, "BIDS")
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 TRIMMED_EVENT_OUTPUT_ROOT = os.path.join(PROJECT_ROOT, "trimmed_event_file_outputs")
 TRIMMED_EVENT_OUTPUT_BIDS_DIR = os.path.join(TRIMMED_EVENT_OUTPUT_ROOT, "bids_outputs")
-FINAL_EXCLUSIONS_JSON_PATH = os.path.join(PROJECT_ROOT, "final_exclusions.json")
+# Single exclusions file for behavioral + fMRIPrep QC (not repo-local; same path on /oak/…)
+FINAL_EXCLUSIONS_JSON_PATH = os.path.join(BEHAVIOR_QC_PATH, "exclusions.json")
 
 # =============================================================================
 # TASKS
