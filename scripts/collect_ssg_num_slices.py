@@ -2,10 +2,12 @@
 """
 Collect ``num_slices`` from JSON sidecars on Flywheel acquisitions whose session
 label, acquisition label, or filename contains ``ssg`` (e.g. ``*_ssg_bold.json``).
-Uses the Flywheel API (project ``russpold/uh2_aim2``); skips ``qa.json`` / ``*_qa.json``.
 
-Requires ``flywheel-sdk`` and an API key (see ``uh2_aim2.config.FLYWHEEL_API_KEY_ENV_VARS``),
-typically ``export FW_API_KEY=...`` on Sherlock.
+``flywheel.Client()`` (env/session auth), ``fw.projects.find(group=..., label=...)``,
+``fw.get_project_sessions``, ``fw.get_session_acquisitions``, and
+``fw.download_file_from_acquisition`` when available.
+
+Project defaults to ``russpold`` / ``uh2_aim2`` from ``uh2_aim2.config``. Skips ``qa.json`` / ``*_qa.json``.
 
 Use ``--local`` to scan a directory tree instead (no API).
 """
@@ -60,31 +62,37 @@ def _iter_ssg_json_files(scan_root: Path) -> list[Path]:
     return out
 
 
-def _flywheel_client() -> Any:
-    import flywheel
-
-    from uh2_aim2.config import FLYWHEEL_API_KEY_ENV_VARS
-
-    for env_name in FLYWHEEL_API_KEY_ENV_VARS:
-        key = os.environ.get(env_name)
-        if key:
-            return flywheel.Client(key)
-    return flywheel.Client()
+def _obj_get(obj: Any, key: str, default: Any = None) -> Any:
+    """Match ``rdoc_fmri_quality_control`` session/acquisition attribute access."""
+    if hasattr(obj, key):
+        return getattr(obj, key)
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    return default
 
 
-def _download_acquisition_json(acq: Any, filename: str) -> tuple[dict[str, Any] | None, str | None]:
-    """Download one JSON attachment to a temp file and parse. Returns (data, error)."""
-    fd, path = tempfile.mkstemp(suffix=".json")
+def _download_acquisition_file(fw: Any, acq_id: str, file_name: str, out_path: Path) -> None:
+    """Same as ``rdoc_fmri_quality_control.scripts.run_flywheel_qc.download_acquisition_file``."""
+    if hasattr(fw, "download_file_from_acquisition"):
+        fw.download_file_from_acquisition(acq_id, file_name, str(out_path))
+        return
+    acq = fw.get_acquisition(acq_id)
+    acq.download_file(file_name, str(out_path))
+
+
+def _download_acquisition_json_via_fw(fw: Any, acq_id: str, filename: str) -> tuple[dict[str, Any] | None, str | None]:
+    fd, path_str = tempfile.mkstemp(suffix=".json")
     os.close(fd)
+    path = Path(path_str)
     try:
-        acq.download_file(filename, path)
-        with open(path, encoding="utf-8") as fp:
+        _download_acquisition_file(fw, acq_id, filename, path)
+        with path.open(encoding="utf-8") as fp:
             return json.load(fp), None
     except Exception as e:
         return None, str(e)
     finally:
         try:
-            os.unlink(path)
+            path.unlink()
         except OSError:
             pass
 
@@ -94,21 +102,28 @@ def _ssg_context(session_label: str, acq_label: str, filename: str) -> bool:
     return "ssg" in blob
 
 
-def collect_rows_from_flywheel(project_path: str) -> list[dict[str, object]]:
+def collect_rows_from_flywheel(group_id: str, project_label: str) -> list[dict[str, object]]:
     import flywheel
 
-    fw = _flywheel_client()
-    proj = fw.lookup(project_path)
+    # Match rdoc_fmri_quality_control: rely on Flywheel auth already present in environment/session.
+    fw = flywheel.Client()
+    projects = fw.projects.find(f"group={group_id},label={project_label}")
+    if not projects:
+        raise RuntimeError(f"No project found for group={group_id}, label={project_label}")
+    project = projects[0]
 
     rows: list[dict[str, object]] = []
-    for session in proj.sessions():
-        ses_label = session.label or ""
-        for acq in session.acquisitions():
-            acq_full = fw.get(acq.id)
-            acq_label = acq_full.label or ""
-            files = getattr(acq_full, "files", None) or []
+    for ses in fw.get_project_sessions(project.id):
+        ses_label = str(_obj_get(ses, "label", "") or "")
+        for acq in fw.get_session_acquisitions(ses.id):
+            acq_label = str(_obj_get(acq, "label", "") or "")
+            files = _obj_get(acq, "files", None) or []
+            acq_id = str(_obj_get(acq, "id", "") or "")
+            if not acq_id:
+                continue
+
             for finfo in files:
-                name = getattr(finfo, "name", None) or ""
+                name = str(_obj_get(finfo, "name", "") or "")
                 if not name.lower().endswith(".json"):
                     continue
                 if _qa_json(name):
@@ -117,7 +132,7 @@ def collect_rows_from_flywheel(project_path: str) -> list[dict[str, object]]:
                     continue
 
                 rel = f"{ses_label}/{acq_label}/{name}".replace(" ", "_")
-                data, err = _download_acquisition_json(acq_full, name)
+                data, err = _download_acquisition_json_via_fw(fw, acq_id, name)
                 if err is not None or data is None:
                     rows.append(
                         {
@@ -210,7 +225,8 @@ def main() -> int:
         "--project",
         type=str,
         default=None,
-        help="Flywheel lookup path group/project (default: config russpold/uh2_aim2).",
+        metavar="GROUP/LABEL",
+        help="Override Flywheel project as group/project_label (default: russpold/uh2_aim2 from config).",
     )
     parser.add_argument(
         "-o",
@@ -247,14 +263,21 @@ def main() -> int:
     else:
         from uh2_aim2.config import FLYWHEEL_GROUP_ID, FLYWHEEL_PROJECT_LABEL
 
-        project_path = args.project or f"{FLYWHEEL_GROUP_ID}/{FLYWHEEL_PROJECT_LABEL}"
+        if args.project:
+            if "/" not in args.project:
+                print("--project must be GROUP/LABEL (e.g. russpold/uh2_aim2)", file=sys.stderr)
+                return 2
+            group_id, project_label = args.project.split("/", 1)
+        else:
+            group_id, project_label = FLYWHEEL_GROUP_ID, FLYWHEEL_PROJECT_LABEL
+
         try:
-            rows = collect_rows_from_flywheel(project_path)
+            rows = collect_rows_from_flywheel(group_id, project_label)
         except Exception as e:
             print(
                 f"Flywheel error: {e}\n"
-                "Ensure flywheel-sdk is installed and FW_API_KEY (or FLYWHEEL_API_KEY) is set, "
-                "or use --local with a synced directory.",
+                "Ensure flywheel-sdk is installed and Flywheel auth is configured in the environment "
+                "(same as rdoc_fmri_quality_control), or use --local with a synced directory.",
                 file=sys.stderr,
             )
             return 1
