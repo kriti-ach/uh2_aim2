@@ -4,7 +4,7 @@ List ``num_slices`` (and file paths) for JSON sidecars from a **Flywheel export*
 tree (not Oak BIDS). Any relative path containing ``ssg`` is included, e.g.
 ``...task-motorSelectiveStop_run-1_ssg...``. Skips ``qa.json`` / ``*_qa.json``.
 
-Default root: env ``UH2_FLYWHEEL_JSON_ROOT``, else ``~/flywheel/russpold/uh2_aim2`` (see ``config.FLYWHEEL_*``).
+Default root: env ``UH2_FLYWHEEL_JSON_ROOT``, else ``~/russpold/uh2_aim2``.
 
 Writes CSV: relative_path, subject, task, run, acq, num_slices
 (some entity columns may be empty if the filename is nonstandard).
@@ -61,7 +61,7 @@ def main() -> int:
         "--root",
         type=Path,
         default=None,
-        help="Flywheel export directory (default: UH2_FLYWHEEL_JSON_ROOT or ~/flywheel/russpold/uh2_aim2)",
+        help="Flywheel export directory (default: UH2_FLYWHEEL_JSON_ROOT or ~/russpold/uh2_aim2)",
     )
     parser.add_argument(
         "-o",
