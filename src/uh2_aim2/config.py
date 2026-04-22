@@ -20,8 +20,10 @@ BIDS_PATH = os.path.join(BASE_PATH, "BIDS")
 # Flywheel project ``russpold/uh2_aim2`` (group_id / project_label).
 FLYWHEEL_GROUP_ID = "russpold"
 FLYWHEEL_PROJECT_LABEL = "uh2_aim2"
+# API key for ``flywheel.Client`` (e.g. on Sherlock). Prefer ``FW_API_KEY``; ``FLYWHEEL_API_KEY`` also accepted.
+FLYWHEEL_API_KEY_ENV_VARS = ("FW_API_KEY", "FLYWHEEL_API_KEY")
 
-# Local Flywheel export root: ``~/russpold/uh2_aim2``. Override with ``UH2_FLYWHEEL_JSON_ROOT``.
+# Optional local mirror for ``collect_ssg_num_slices.py --local`` only (not used for API pulls).
 FLYWHEEL_JSON_EXPORT_PATH = os.environ.get("UH2_FLYWHEEL_JSON_ROOT") or os.path.join(
     os.path.expanduser("~"),
     FLYWHEEL_GROUP_ID,
