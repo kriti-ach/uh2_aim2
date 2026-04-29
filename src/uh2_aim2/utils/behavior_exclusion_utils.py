@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from uh2_aim2.config import (
-    BEHAVIOR_DATA,
+    BEHAVIOR_DATA_PROCESSED,
     BIDS_EVENT_FILES_TO_TRIM,
     MAX_LARGER_LATER_PROPORTION,
     MIN_LARGER_LATER_PROPORTION,
@@ -312,7 +312,7 @@ def check_missing_data(qc_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def check_manip_pre_rating(
-    subjects: list, processed_path: str = BEHAVIOR_DATA
+    subjects: list, processed_path: str = BEHAVIOR_DATA_PROCESSED
 ) -> pd.DataFrame:
     """Check if subjects have pre-rating cleaned CSV in ``processed`` (e.g. ``1046_preRating_cleaned.csv``)."""
     exclusions = []

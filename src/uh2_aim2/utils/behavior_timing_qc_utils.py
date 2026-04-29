@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from uh2_aim2.config import (
-    BEHAVIOR_DATA,
+    BEHAVIOR_DATA_UNPROCESSED,
     FMRI_TRIGGER_TR_MS,
     FMRI_TRIGGER_WAIT_DURATION_S,
     FMRI_TRIGGER_WAIT_TASKS,
@@ -25,7 +25,7 @@ from uh2_aim2.utils.behavior_qc_utils import remove_practice_stage_rows
 
 def _task_csv_path(subject: str, task: str) -> str:
     """Flat processed layout: ``{subject}_{task}_cleaned.csv`` under ``BEHAVIOR_DATA``."""
-    return os.path.join(BEHAVIOR_DATA, f"{subject}_{task}_cleaned.csv")
+    return os.path.join(BEHAVIOR_DATA_UNPROCESSED, f"{subject}_{task}_cleaned.csv")
 
 
 def _wait_span_seconds(
@@ -113,8 +113,8 @@ def run_behavior_timing_qc(
 
     if subjects is None:
         subjects = []
-        if os.path.isdir(BEHAVIOR_DATA):
-            cleaned_files = glob(os.path.join(BEHAVIOR_DATA, "*_cleaned.csv"))
+        if os.path.isdir(BEHAVIOR_DATA_UNPROCESSED):
+            cleaned_files = glob(os.path.join(BEHAVIOR_DATA_UNPROCESSED, "*_cleaned.csv"))
             found: set[str] = set()
             for path in cleaned_files:
                 stem = os.path.basename(path).replace("_cleaned.csv", "")

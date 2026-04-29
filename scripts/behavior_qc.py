@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 
 from uh2_aim2.config import (
-    BEHAVIOR_DATA,
+    BEHAVIOR_DATA_PROCESSED,
     BEHAVIOR_QC_PATH,
     FINAL_EXCLUSIONS_JSON_PATH,
     NO_RESPONSE,
@@ -179,7 +179,7 @@ def _harmonize_cleaned_task_df(df: pd.DataFrame, task: str) -> pd.DataFrame:
     return out
 
 
-def load_task_data(behavior_data_path: str = BEHAVIOR_DATA) -> dict[str, pd.DataFrame]:
+def load_task_data(behavior_data_path: str = BEHAVIOR_DATA_PROCESSED) -> dict[str, pd.DataFrame]:
     """Load cleaned behavioral CSV files for all tasks."""
     data = {}
 
@@ -204,7 +204,7 @@ def load_task_data(behavior_data_path: str = BEHAVIOR_DATA) -> dict[str, pd.Data
 
 
 def run_qc_pipeline(
-    behavior_data_path: str = BEHAVIOR_DATA,
+    behavior_data_path: str = BEHAVIOR_DATA_PROCESSED,
     output_path: str = BEHAVIOR_QC_PATH,
 ) -> tuple[dict[str, pd.DataFrame], pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
