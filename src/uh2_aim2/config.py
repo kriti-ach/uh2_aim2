@@ -17,19 +17,6 @@ BEHAVIOR_TIMING_QC_FLAGGED_CSV = os.path.join(BEHAVIOR_QC_PATH, "behavior_timing
 # BIDS root (e.g. ``*events.tsv`` under ``sub-*/func/``)
 BIDS_PATH = os.path.join(BASE_PATH, "BIDS")
 
-# Flywheel project ``russpold/uh2aim2`` (group_id / project_label).
-FLYWHEEL_GROUP_ID = "russpold"
-FLYWHEEL_PROJECT_LABEL = "uh2aim2"
-# ``flywheel.Client()`` reads credentials from the runtime environment / session (same pattern as
-# ``rdoc_fmri_quality_control``), e.g. ``FW_API_KEY`` on Sherlock or ``flywheel login``.
-
-# Optional local mirror for ``collect_ssg_num_slices.py --local`` only (not used for API pulls).
-FLYWHEEL_JSON_EXPORT_PATH = os.environ.get("UH2_FLYWHEEL_JSON_ROOT") or os.path.join(
-    os.path.expanduser("~"),
-    FLYWHEEL_GROUP_ID,
-    FLYWHEEL_PROJECT_LABEL,
-)
-
 # Project-local output path (scratch clone) for previewing trimmed BIDS event files
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 TRIMMED_EVENT_OUTPUT_ROOT = os.path.join(PROJECT_ROOT, "trimmed_event_file_outputs")
