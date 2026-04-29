@@ -114,10 +114,10 @@ def run_behavior_timing_qc(
     if subjects is None:
         subjects = []
         if os.path.isdir(BEHAVIOR_DATA_UNPROCESSED):
-            cleaned_files = glob(os.path.join(BEHAVIOR_DATA_UNPROCESSED, "*_cleaned.csv"))
+            cleaned_files = glob(os.path.join(BEHAVIOR_DATA_UNPROCESSED, "*.csv"))
             found: set[str] = set()
             for path in cleaned_files:
-                stem = os.path.basename(path).replace("_cleaned.csv", "")
+                stem = os.path.basename(path).replace("*.csv", "")
                 if "_" not in stem:
                     continue
                 subj = stem.split("_", 1)[0]
