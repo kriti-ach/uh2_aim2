@@ -1,5 +1,6 @@
 """Utility functions for behavioral QC calculations using vectorized pandas operations."""
 
+import glob
 import os
 from math import ceil, floor
 
@@ -9,7 +10,7 @@ import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
 from uh2_aim2.config import (
-    BEHAVIOR_DATA_UNPROCESSED,
+    BEHAVIOR_DATA_RAW,
     CONDITIONS,
     CONDITION_COLUMN,
     EXPERIMENTOR_WAIT_TRIAL_ID,
@@ -20,6 +21,7 @@ from uh2_aim2.config import (
     NO_RESPONSE,
     STOP_TRIAL_TYPES,
     SECONDS_TO_MILLISECONDS,
+    TASKS,
 )
 # =============================================================================
 # CORE METRIC CALCULATIONS
@@ -424,6 +426,40 @@ def final_sample_task_csv_path(subject: str | int, task: str) -> str:
     """Path to one task file under ``BEHAVIOR_DATA_RAW``."""
     sid = str(standardize_subject_numbers(subject))
     return os.path.join(BEHAVIOR_DATA_RAW, sid, f"{sid}_{task}.csv")
+
+
+def infer_subjects_from_processed_cleaned(processed_path: str) -> set[str]:
+    """Subject ids parsed from ``{{sid}}_{{task}}_cleaned.csv`` filenames under ``processed_path``."""
+    subjects: set[str] = set()
+    for task in TASKS:
+        pattern = os.path.join(processed_path, f"*_{task}_cleaned.csv")
+        for fpath in glob.glob(pattern):
+            base = os.path.basename(fpath)
+            suffix = f"_{task}_cleaned.csv"
+            if base.endswith(suffix):
+                subjects.add(base[: -len(suffix)])
+    return subjects
+
+
+def missing_raw_behavior_csv_pairs(processed_path: str) -> pd.DataFrame:
+    """
+    Rows ``subject_id``, ``task`` for expected ``BEHAVIOR_DATA_RAW/{{sid}}/{{sid}}_{{task}}.csv``
+    files that are absent.
+
+    Universe is subjects seen under raw and/or processed cleaned filenames.
+    """
+    from uh2_aim2.utils.behavior_timing_qc_utils import infer_subjects_from_behavior_raw
+
+    raw_set = set(infer_subjects_from_behavior_raw())
+    proc_set = infer_subjects_from_processed_cleaned(processed_path)
+    subjects = sorted(raw_set | proc_set, key=lambda s: int(s) if str(s).isdigit() else s)
+    rows: list[dict[str, str]] = []
+    for sid in subjects:
+        for task in TASKS:
+            path = os.path.join(BEHAVIOR_DATA_RAW, sid, f"{sid}_{task}.csv")
+            if not os.path.isfile(path):
+                rows.append({"subject_id": sid, "task": task})
+    return pd.DataFrame(rows)
 
 
 def remove_practice_stage_rows(df: pd.DataFrame) -> pd.DataFrame:

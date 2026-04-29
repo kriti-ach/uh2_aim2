@@ -21,8 +21,18 @@ BIDS_PATH = os.path.join(BASE_PATH, "BIDS")
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 TRIMMED_EVENT_OUTPUT_ROOT = os.path.join(PROJECT_ROOT, "trimmed_event_file_outputs")
 TRIMMED_EVENT_OUTPUT_BIDS_DIR = os.path.join(TRIMMED_EVENT_OUTPUT_ROOT, "bids_outputs")
-# Single exclusions file for behavioral + fMRIPrep QC (not repo-local; same path on /oak/…)
+# Single exclusions file for behavioral + fMRIPrep QC:
+# ``/oak/stanford/groups/russpold/data/uh2/aim2/behavioral_data/behavioral_qc/exclusions.json``
 FINAL_EXCLUSIONS_JSON_PATH = os.path.join(BEHAVIOR_QC_PATH, "exclusions.json")
+
+# Reasons recorded under ``behavioral_exclusions`` in ``exclusions.json`` (timing / missing-file rows).
+EXCLUSION_REASON_MISSING_BEHAVIOR_FILE = "missing behavior file"
+EXCLUSION_REASON_EF_TIMING_OFF = "Experiment Factory timing off in behavior file"
+
+# Subject × task pairs excluded from timing-based rows in ``behavioral_exclusions`` (confirmed OK).
+BEHAVIOR_EXCLUSIONS_TIMING_ALLOWLIST = [
+    (931, "stopSignal"),
+]
 
 # =============================================================================
 # TASKS
@@ -82,8 +92,7 @@ GO_TRIAL_TYPES = {
 # Manipulation (scanner_wait): max(time_elapsed) - min(time_elapsed) on matching rows.
 #
 # discountFix / stopSignal / motorSelectiveStop (fmri_trigger_wait): in file order,
-# last row's time_elapsed minus the second row's time_elapsed, plus ``FMRI_TRIGGER_TR_MS``.
-# If there is only one matching row, use ``block_duration`` (ms) as fallback.
+# last minus first ``time_elapsed`` on matching rows (single row: ``block_duration`` ms).
 BEHAVIOR_TIMING_NOMINAL_WAIT_DURATION_S = 10.88
 MANIPULATION_SCANNER_WAIT_TRIAL_ID = "scanner_wait"
 MANIPULATION_SCANNER_WAIT_DURATION_S = BEHAVIOR_TIMING_NOMINAL_WAIT_DURATION_S

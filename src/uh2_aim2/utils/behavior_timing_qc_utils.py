@@ -26,6 +26,11 @@ def _task_csv_path(subject: str, task: str) -> str:
     return os.path.join(BEHAVIOR_DATA_RAW, subject, f"{subject}_{task}.csv")
 
 
+def infer_subjects_from_behavior_raw() -> list[str]:
+    """Infer subject ids from ``BEHAVIOR_DATA_RAW/{subject}`` directories."""
+    return _infer_subjects_from_raw()
+
+
 def _infer_subjects_from_raw() -> list[str]:
     """Infer subject ids from ``BEHAVIOR_DATA_RAW/{subject}`` directories."""
     if not os.path.isdir(BEHAVIOR_DATA_RAW):
