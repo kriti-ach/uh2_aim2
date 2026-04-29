@@ -9,7 +9,7 @@ import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
 from uh2_aim2.config import (
-    BEHAVIOR_DATA_RAW,
+    BEHAVIOR_DATA_UNPROCESSED,
     CONDITIONS,
     CONDITION_COLUMN,
     EXPERIMENTOR_WAIT_TRIAL_ID,

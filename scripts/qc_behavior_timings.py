@@ -20,6 +20,7 @@ from uh2_aim2.utils.behavior_timing_qc_utils import run_behavior_timing_qc
 
 
 def main() -> int:
+    print("Timing QC version: 2026-04-29-v2 (auto +1 TR for non-nominal fmri_trigger_wait)")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--subjects",
