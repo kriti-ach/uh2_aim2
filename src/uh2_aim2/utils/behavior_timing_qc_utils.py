@@ -204,15 +204,11 @@ def run_behavior_timing_qc(
                 continue
 
             assert span is not None
-            span_base = span
+            # For discountFix/motorSelectiveStop/stopSignal: add +1 TR (680ms) when
+            # raw span is NOT already near the expected 10.88s.
             tr_sec = float(FMRI_TRIGGER_TR_MS) / float(SECONDS_TO_MILLISECONDS)
-            if task in FMRI_TRIGGER_WAIT_TASKS:
-                if _already_near_expected_wait(span_base, expected):
-                    span = span_base
-                else:
-                    span = span_base + tr_sec
-            else:
-                span = span_base
+            if task in FMRI_TRIGGER_WAIT_TASKS and not _already_near_expected_wait(span, expected):
+                span = span + tr_sec
             delta = abs(span - expected)
             ok = _span_in_nominal_bucket(span, expected)
             rows.append(
