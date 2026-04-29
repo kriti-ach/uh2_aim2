@@ -8,7 +8,6 @@ Runs quality control on behavioral data and outputs:
 """
 
 import os
-import json
 from glob import glob
 from pathlib import Path
 
@@ -18,12 +17,9 @@ import pandas as pd
 from uh2_aim2.config import (
     BEHAVIOR_DATA_PROCESSED,
     BEHAVIOR_QC_PATH,
-    BEHAVIOR_EXCLUSIONS_TIMING_ALLOWLIST,
     BEHAVIOR_TIMING_FLAG_DELTA_THRESHOLD,
     BEHAVIOR_TIMING_QC_CSV,
     BEHAVIOR_TIMING_QC_FLAGGED_CSV,
-    EXCLUSION_REASON_EF_TIMING_OFF,
-    EXCLUSION_REASON_MISSING_BEHAVIOR_FILE,
     FINAL_EXCLUSIONS_JSON_PATH,
     NO_RESPONSE,
     SECONDS_TO_MILLISECONDS,
@@ -43,136 +39,9 @@ from uh2_aim2.utils.behavior_qc_utils import (
     compute_qc_summary,
     missing_raw_behavior_csv_pairs,
     remove_practice_stage_rows,
-    standardize_subject_numbers,
 )
 from uh2_aim2.utils.behavior_timing_qc_utils import run_behavior_timing_qc
-
-
-def _format_subject_id(subject_value: object) -> str:
-    """Normalize subject values to BIDS-style ids, e.g. sub-1021."""
-    raw = str(subject_value).strip()
-    if raw.startswith("sub-"):
-        token = raw.replace("sub-", "")
-    elif raw.startswith("s"):
-        token = raw[1:]
-    else:
-        token = raw
-    token = token.lstrip("0") or "0"
-    return f"sub-{token}"
-
-
-_REASON_PRIORITY = {
-    "behavioral exclusion": 0,
-    EXCLUSION_REASON_EF_TIMING_OFF: 1,
-    EXCLUSION_REASON_MISSING_BEHAVIOR_FILE: 2,
-}
-
-
-def _pair_in_behavior_exclusions_allowlist(subject_id: object, task: object) -> bool:
-    sid_for_std = subject_id if isinstance(subject_id, (str, int)) else str(subject_id)
-    s_int = standardize_subject_numbers(sid_for_std)
-    t_str = str(task).strip()
-    for sid_a, task_a in BEHAVIOR_EXCLUSIONS_TIMING_ALLOWLIST:
-        if int(sid_a) == int(s_int) and str(task_a) == t_str:
-            return True
-    return False
-
-
-def _timing_rows_for_exclusions_json(timing_df: pd.DataFrame) -> pd.DataFrame:
-    """Same flag logic as ``qc_behavior_timings`` flagged CSV, plus unreadable CSV rows."""
-    if timing_df.empty:
-        return timing_df
-    fr = timing_df["flag_reason"].astype(str)
-    delta_ok = pd.to_numeric(timing_df["delta"], errors="coerce")
-    thresh = float(BEHAVIOR_TIMING_FLAG_DELTA_THRESHOLD)
-    mask = (~timing_df["ok"]) & (
-        fr.eq("missing csv")
-        | (delta_ok >= thresh)
-        | fr.str.startswith("read error")
-    )
-    return timing_df.loc[mask]
-
-
-def _merge_behavioral_exclusion_json_records(
-    exclusion_df: pd.DataFrame,
-    missing_raw_df: pd.DataFrame,
-    timing_df: pd.DataFrame,
-) -> list[dict[str, str]]:
-    merged: dict[tuple[str, str], tuple[int, dict[str, str]]] = {}
-
-    def upsert(subject_value: object, task_value: object, reason: str) -> None:
-        key_sub = _format_subject_id(subject_value)
-        task_s = str(task_value).strip()
-        key = (key_sub, task_s)
-        pri = _REASON_PRIORITY.get(reason, 99)
-        if key not in merged or pri < merged[key][0]:
-            merged[key] = (pri, {"subject": key_sub, "task": task_s, "reason": reason})
-
-    if not exclusion_df.empty:
-        pairs = exclusion_df[["subject_id", "task"]].drop_duplicates()
-        for _, row in pairs.iterrows():
-            upsert(row["subject_id"], row["task"], "behavioral exclusion")
-
-    timing_sub = _timing_rows_for_exclusions_json(timing_df)
-    if not timing_sub.empty:
-        for _, row in timing_sub.iterrows():
-            if _pair_in_behavior_exclusions_allowlist(row["subject_id"], row["task"]):
-                continue
-            fr = str(row["flag_reason"]).strip()
-            reason = (
-                EXCLUSION_REASON_MISSING_BEHAVIOR_FILE
-                if fr == "missing csv"
-                else EXCLUSION_REASON_EF_TIMING_OFF
-            )
-            upsert(row["subject_id"], row["task"], reason)
-
-    if not missing_raw_df.empty:
-        for _, row in missing_raw_df.iterrows():
-            if _pair_in_behavior_exclusions_allowlist(row["subject_id"], row["task"]):
-                continue
-            upsert(row["subject_id"], row["task"], EXCLUSION_REASON_MISSING_BEHAVIOR_FILE)
-
-    return [
-        pair[1]
-        for pair in sorted(
-            merged.values(),
-            key=lambda x: (x[1]["subject"], x[1]["task"]),
-        )
-    ]
-
-
-def _update_final_exclusions_json(
-    exclusion_df: pd.DataFrame,
-    missing_raw_df: pd.DataFrame,
-    timing_df: pd.DataFrame,
-    json_path: str,
-) -> None:
-    """
-    Replace ``behavioral_exclusions`` in ``exclusions.json`` under ``BEHAVIOR_QC_PATH``.
-
-    Combines metric exclusions, missing raw CSV pairs, and behavioral timing QC flags.
-    Rows matching ``BEHAVIOR_EXCLUSIONS_TIMING_ALLOWLIST`` are omitted (timing + missing-file).
-
-    Keeps all other top-level exclusion sections unchanged.
-    """
-    path = Path(json_path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if path.exists():
-        with path.open("r", encoding="utf-8") as f:
-            payload = json.load(f)
-    else:
-        payload = {}
-
-    payload.setdefault("behavioral_exclusions", [])
-    payload.setdefault("fmriprep_exclusions", [])
-    payload.setdefault("other_exclusions", [])
-
-    payload["behavioral_exclusions"] = _merge_behavioral_exclusion_json_records(
-        exclusion_df, missing_raw_df, timing_df
-    )
-
-    with path.open("w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=4)
+from uh2_aim2.utils.exclusion_json_utils import write_behavioral_only_to_exclusions_json
 
 
 def _to_bool_series(series: pd.Series) -> pd.Series:
@@ -295,16 +164,24 @@ def load_task_data(behavior_data_path: str = BEHAVIOR_DATA_PROCESSED) -> dict[st
 def run_qc_pipeline(
     behavior_data_path: str = BEHAVIOR_DATA_PROCESSED,
     output_path: str = BEHAVIOR_QC_PATH,
-) -> tuple[dict[str, pd.DataFrame], pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    skip_exclusions_json: bool = False,
+) -> tuple[
+    dict[str, pd.DataFrame],
+    pd.DataFrame,
+    pd.DataFrame,
+    pd.DataFrame,
+    pd.DataFrame,
+    pd.DataFrame,
+]:
     """
     Run the complete behavioral QC pipeline.
 
     Returns:
-        Tuple of (qc_dict, exclusion_df, flags_df, missing_df) where:
-            - qc_dict maps task -> QC DataFrame
-            - exclusion_df contains exclusion criteria violations
-            - flags_df contains warnings/flags
-            - missing_df contains subjects with missing task data
+        Tuple of (qc_dict, exclusion_df, flags_df, missing_df, timing_df, missing_raw_df).
+
+    If ``skip_exclusions_json`` is True, does not write ``exclusions.json`` (for unified QC).
+    Otherwise updates only ``behavioral_exclusions`` in ``exclusions.json``, preserving
+    fMRIPrep/other sections when present.
     """
     Path(output_path).mkdir(parents=True, exist_ok=True)
 
@@ -391,10 +268,14 @@ def run_qc_pipeline(
     # Exclusions
     exclusion_df.to_csv(os.path.join(output_path, "exclusions.csv"), index=False)
     print("  exclusions.csv")
-    _update_final_exclusions_json(
-        exclusion_df, missing_raw_df, timing_df, FINAL_EXCLUSIONS_JSON_PATH
-    )
-    print(f"  {FINAL_EXCLUSIONS_JSON_PATH}")
+    if not skip_exclusions_json:
+        write_behavioral_only_to_exclusions_json(
+            exclusion_df,
+            missing_raw_df,
+            timing_df,
+            FINAL_EXCLUSIONS_JSON_PATH,
+        )
+        print(f"  {FINAL_EXCLUSIONS_JSON_PATH}")
 
     # Flags
     flags_df.to_csv(os.path.join(output_path, "flags.csv"), index=False)
@@ -440,7 +321,7 @@ def run_qc_pipeline(
     print("Done!")
     print("=" * 60)
 
-    return qc_results, exclusion_df, flags_df, missing_df
+    return qc_results, exclusion_df, flags_df, missing_df, timing_df, missing_raw_df
 
 
 if __name__ == "__main__":

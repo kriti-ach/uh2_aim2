@@ -29,6 +29,22 @@ FINAL_EXCLUSIONS_JSON_PATH = os.path.join(BEHAVIOR_QC_PATH, "exclusions.json")
 EXCLUSION_REASON_MISSING_BEHAVIOR_FILE = "missing behavior file"
 EXCLUSION_REASON_EF_TIMING_OFF = "Experiment Factory timing off in behavior file"
 
+# Tasks considered for subject-wide spillover into ``other_exclusions`` (behavioral + fMRIPrep counts).
+FULL_QC_CANONICAL_TASKS = (
+    "motorSelectiveStop",
+    "stopSignal",
+    "discountFix",
+    "manipulationTask",
+    "rest",
+)
+
+# When a subject has more than this many excluded canonical tasks, remaining canonical tasks go to ``other_exclusions``.
+SUBJECT_WIDE_EXCLUSION_THRESHOLD = 2
+
+EXCLUSION_REASON_SUBJECT_WIDE_OTHER = (
+    "Excluded because subject had more than 2 tasks excluded across behavioral or fMRIPrep QC"
+)
+
 # Subject × task pairs excluded from timing-based rows in ``behavioral_exclusions`` (confirmed OK).
 BEHAVIOR_EXCLUSIONS_TIMING_ALLOWLIST = [
     (931, "stopSignal"),

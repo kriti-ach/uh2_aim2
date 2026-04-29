@@ -16,29 +16,12 @@ from uh2_aim2.config import (
     FMRIPREP_QC_OUTPUT_CSV,
     FMRIPREP_QC_OUTPUT_DIR,
 )
+from uh2_aim2.utils.exclusion_json_utils import fmriprep_exclusion_records_from_metrics
 from uh2_aim2.utils.fmriprep_qc_utils import collect_fmriprep_motion_metrics
 
 
-def _normalize_subject(subject_value: object) -> str:
-    raw = str(subject_value).strip()
-    if raw.startswith("sub-"):
-        token = raw.replace("sub-", "")
-    elif raw.startswith("s"):
-        token = raw[1:]
-    else:
-        token = raw
-    token = token.lstrip("0") or "0"
-    return f"sub-{token}"
-
-
 def _update_final_exclusions_json(metrics_df, json_path: str) -> int:
-    """
-    Update `fmriprep_exclusions` in exclusions.json (FINAL_EXCLUSIONS_JSON_PATH) from fMRIPrep QC metrics.
-
-    Logic:
-    - rest scans: exclude when fd_mean_mm > 0.2
-    - non-rest scans: exclude when high_motion_flag is True
-    """
+    """Replace ``fmriprep_exclusions`` in exclusions.json; preserve other sections."""
     path = Path(json_path)
     if path.exists():
         with path.open("r", encoding="utf-8") as f:
@@ -50,46 +33,8 @@ def _update_final_exclusions_json(metrics_df, json_path: str) -> int:
     payload.setdefault("fmriprep_exclusions", [])
     payload.setdefault("other_exclusions", [])
 
-    if metrics_df.empty:
-        payload["fmriprep_exclusions"] = []
-        with path.open("w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=4)
-        return 0
+    payload["fmriprep_exclusions"] = fmriprep_exclusion_records_from_metrics(metrics_df)
 
-    exclusions = []
-    for _, row in metrics_df.iterrows():
-        task = str(row.get("task", "")).strip()
-        task_lower = task.lower()
-        fd_mean = row.get("fd_mean_mm", float("nan"))
-        high_motion = bool(row.get("high_motion_flag", False))
-
-        reason = None
-        if task_lower == "rest":
-            if fd_mean > FMRIPREP_FD_MEAN_INCLUDE_THRESHOLD_MM:
-                reason = "Subject had FD mean > 0.2mm"
-        else:
-            if high_motion:
-                reason = "Subject had more than 20% of TRs with FD > 0.5mm or DVARS > 1.5"
-
-        if reason is None:
-            continue
-
-        exclusions.append(
-            {
-                "subject": _normalize_subject(row.get("subject_id")),
-                "task": task,
-                "reason": reason,
-            }
-        )
-
-    # Keep one entry per subject+task
-    unique = {}
-    for item in exclusions:
-        key = (item["subject"], item["task"])
-        if key not in unique:
-            unique[key] = item
-
-    payload["fmriprep_exclusions"] = list(unique.values())
     with path.open("w", encoding="utf-8") as f:
         json.dump(payload, f, indent=4)
 
