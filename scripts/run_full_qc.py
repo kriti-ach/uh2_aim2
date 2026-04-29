@@ -30,6 +30,7 @@ import behavior_qc as behavior_qc_script  # noqa: E402
 
 from uh2_aim2.config import (  # noqa: E402
     FINAL_EXCLUSIONS_JSON_PATH,
+    FMRIPREP_DERIVATIVES_PATH,
     FMRIPREP_DVARS_TR_THRESHOLD,
     FMRIPREP_FD_MEAN_INCLUDE_THRESHOLD_MM,
     FMRIPREP_FD_TR_THRESHOLD_MM,
