@@ -19,6 +19,8 @@ from uh2_aim2.config import (
     SECONDS_TO_MILLISECONDS,
     TASKS,
 )
+
+
 def _task_csv_path(subject: str, task: str) -> str:
     """Raw layout: ``BEHAVIOR_DATA_RAW/{subject}/{subject}_{task}.csv``."""
     return os.path.join(BEHAVIOR_DATA_RAW, subject, f"{subject}_{task}.csv")
@@ -44,8 +46,9 @@ def _wait_span_seconds(
 
     - ``scanner_wait``: (max - min) ``time_elapsed`` (ms in CSV) → s.
     - ``fmri_trigger_wait``: file order, last minus **second** ``time_elapsed`` (ms);
-      single matching row uses ``block_duration`` (ms). ``run_behavior_timing_qc``
-      applies +1 TR only when there are multiple matching rows.
+      single matching row uses ``block_duration`` (ms).
+      For the three fmri-trigger tasks, ``run_behavior_timing_qc`` adds +1 TR only when
+      this raw span is **not** already in the nominal band around ``expected`` (~10.88 s).
     """
     if trial_id_col not in df.columns:
         return None, f"missing column {trial_id_col!r}"
@@ -101,21 +104,18 @@ def _expected_for_task(task: str) -> tuple[str, float] | None:
     return None
 
 
-def _needs_extra_tr(df: pd.DataFrame, trial_token: str) -> bool:
-    """Apply +1 TR only when there are multiple ``fmri_trigger_wait`` rows (raw CSV)."""
-    if trial_token != FMRI_TRIGGER_WAIT_TRIAL_ID:
-        return False
-    if "trial_id" not in df.columns:
-        return False
-    tid = df["trial_id"].astype(str).str.strip()
-    return int((tid == trial_token).sum()) > 1
-
-
 def _span_in_nominal_bucket(span_s: float, expected_s: float) -> bool:
     """True if span is in the hundredth-second band [expected, expected + 0.01)."""
     eps = 1e-9
     low, high = expected_s, expected_s + 0.01
     return (span_s + eps >= low) and (span_s < high)
+
+
+def _already_near_expected_wait(span_s: float, expected_s: float) -> bool:
+    """Raw span is already ~expected (e.g. ~10.88 s): do not add +1 TR for fmri-trigger tasks."""
+    if _span_in_nominal_bucket(span_s, expected_s):
+        return True
+    return abs(float(span_s) - float(expected_s)) <= 0.01
 
 
 def run_behavior_timing_qc(
@@ -125,8 +125,7 @@ def run_behavior_timing_qc(
     """
     For each subject × task, check wait-window span against config expectations.
 
-    Uses each CSV **as-is** (no practice / experimentor_wait trimming). Row counts for
-    ``fmri_trigger_wait`` and span math must match the raw export.
+    Uses each CSV **as-is** (no practice / experimentor_wait trimming).
 
     If ``subjects`` is None, infers subjects from subdirectories under
     ``BEHAVIOR_DATA_RAW``. ``tasks`` defaults to ``TASKS``.
@@ -205,8 +204,15 @@ def run_behavior_timing_qc(
                 continue
 
             assert span is not None
-            if _needs_extra_tr(df, trial_token):
-                span = span + (float(FMRI_TRIGGER_TR_MS) / float(SECONDS_TO_MILLISECONDS))
+            span_base = span
+            tr_sec = float(FMRI_TRIGGER_TR_MS) / float(SECONDS_TO_MILLISECONDS)
+            if task in FMRI_TRIGGER_WAIT_TASKS:
+                if _already_near_expected_wait(span_base, expected):
+                    span = span_base
+                else:
+                    span = span_base + tr_sec
+            else:
+                span = span_base
             delta = abs(span - expected)
             ok = _span_in_nominal_bucket(span, expected)
             rows.append(
