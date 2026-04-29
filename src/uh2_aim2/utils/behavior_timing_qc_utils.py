@@ -19,9 +19,6 @@ from uh2_aim2.config import (
     SECONDS_TO_MILLISECONDS,
     TASKS,
 )
-from uh2_aim2.utils.behavior_qc_utils import remove_practice_stage_rows
-
-
 def _task_csv_path(subject: str, task: str) -> str:
     """Raw layout: ``BEHAVIOR_DATA_RAW/{subject}/{subject}_{task}.csv``."""
     return os.path.join(BEHAVIOR_DATA_RAW, subject, f"{subject}_{task}.csv")
@@ -105,8 +102,10 @@ def _expected_for_task(task: str) -> tuple[str, float] | None:
 
 
 def _needs_extra_tr(df: pd.DataFrame, trial_token: str) -> bool:
-    """Apply +1 TR only for fmri-trigger tasks with multiple wait rows."""
+    """Apply +1 TR only when there are multiple ``fmri_trigger_wait`` rows (raw CSV)."""
     if trial_token != FMRI_TRIGGER_WAIT_TRIAL_ID:
+        return False
+    if "trial_id" not in df.columns:
         return False
     tid = df["trial_id"].astype(str).str.strip()
     return int((tid == trial_token).sum()) > 1
@@ -125,6 +124,9 @@ def run_behavior_timing_qc(
 ) -> pd.DataFrame:
     """
     For each subject × task, check wait-window span against config expectations.
+
+    Uses each CSV **as-is** (no practice / experimentor_wait trimming). Row counts for
+    ``fmri_trigger_wait`` and span math must match the raw export.
 
     If ``subjects`` is None, infers subjects from subdirectories under
     ``BEHAVIOR_DATA_RAW``. ``tasks`` defaults to ``TASKS``.
@@ -168,7 +170,7 @@ def run_behavior_timing_qc(
                 continue
 
             try:
-                df = remove_practice_stage_rows(pd.read_csv(path))
+                df = pd.read_csv(path)
             except (OSError, UnicodeDecodeError, pd.errors.ParserError, ValueError) as exc:
                 rows.append(
                     {
