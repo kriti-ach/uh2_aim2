@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import os
-from glob import glob
 from typing import Any
 
 import numpy as np
 import pandas as pd
 
 from uh2_aim2.config import (
-    BEHAVIOR_DATA_UNPROCESSED,
+    BEHAVIOR_DATA_RAW,
     FMRI_TRIGGER_TR_MS,
     FMRI_TRIGGER_WAIT_DURATION_S,
     FMRI_TRIGGER_WAIT_TASKS,
@@ -24,8 +23,20 @@ from uh2_aim2.utils.behavior_qc_utils import remove_practice_stage_rows
 
 
 def _task_csv_path(subject: str, task: str) -> str:
-    """Flat processed layout: ``{subject}_{task}_cleaned.csv`` under ``BEHAVIOR_DATA``."""
-    return os.path.join(BEHAVIOR_DATA_UNPROCESSED, f"{subject}_{task}_cleaned.csv")
+    """Raw layout: ``BEHAVIOR_DATA_RAW/{subject}/{subject}_{task}.csv``."""
+    return os.path.join(BEHAVIOR_DATA_RAW, subject, f"{subject}_{task}.csv")
+
+
+def _infer_subjects_from_raw() -> list[str]:
+    """Infer subject ids from ``BEHAVIOR_DATA_RAW/{subject}`` directories."""
+    if not os.path.isdir(BEHAVIOR_DATA_RAW):
+        return []
+    subjects: list[str] = []
+    for entry in sorted(os.listdir(BEHAVIOR_DATA_RAW)):
+        subj_dir = os.path.join(BEHAVIOR_DATA_RAW, entry)
+        if os.path.isdir(subj_dir):
+            subjects.append(entry)
+    return subjects
 
 
 def _wait_span_seconds(
@@ -106,23 +117,23 @@ def run_behavior_timing_qc(
     """
     For each subject × task, check wait-window span against config expectations.
 
-    If ``subjects`` is None, infers subjects from ``*_cleaned.csv`` files in
-    ``BEHAVIOR_DATA``. ``tasks`` defaults to ``TASKS``.
+    If ``subjects`` is None, infers subjects from subdirectories under
+    ``BEHAVIOR_DATA_RAW``. ``tasks`` defaults to ``TASKS``.
     """
+    result_columns = [
+        "subject_id",
+        "task",
+        "trial_id_filter",
+        "expected_duration",
+        "observed_duration",
+        "delta",
+        "ok",
+        "flag_reason",
+    ]
     task_list = list(tasks) if tasks is not None else list(TASKS)
 
     if subjects is None:
-        subjects = []
-        if os.path.isdir(BEHAVIOR_DATA_UNPROCESSED):
-            cleaned_files = glob(os.path.join(BEHAVIOR_DATA_UNPROCESSED, "*.csv"))
-            found: set[str] = set()
-            for path in cleaned_files:
-                stem = os.path.basename(path).replace("*.csv", "")
-                if "_" not in stem:
-                    continue
-                subj = stem.split("_", 1)[0]
-                found.add(subj)
-            subjects = sorted(found)
+        subjects = _infer_subjects_from_raw()
 
     rows: list[dict[str, Any]] = []
     for subject in subjects:
@@ -198,4 +209,4 @@ def run_behavior_timing_qc(
                 }
             )
 
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows, columns=result_columns)

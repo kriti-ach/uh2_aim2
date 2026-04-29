@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """
-Check scanner / fMRI trigger wait spans in processed ``*_cleaned.csv`` files under BEHAVIOR_DATA.
+Check scanner / fMRI trigger wait spans in raw task CSV files:
+``BEHAVIOR_DATA_RAW/{subject}/{subject}_{task}.csv``.
 
 Writes a CSV listing subject, task, observed vs expected duration, and flags.
 """
@@ -24,7 +25,7 @@ def main() -> int:
         "--subjects",
         nargs="*",
         default=None,
-        help="Subject ids (e.g. 1021). Default: inferred from *_cleaned.csv in BEHAVIOR_DATA",
+        help="Subject ids (e.g. 1021). Default: inferred from behavioral_data/raw subject folders",
     )
     parser.add_argument(
         "--tasks",
