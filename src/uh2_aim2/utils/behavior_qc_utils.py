@@ -9,7 +9,7 @@ import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
 from uh2_aim2.config import (
-    BEHAVIOR_SAMPLE_DATA,
+    BEHAVIOR_DATA_UNPROCESSED,
     CONDITIONS,
     CONDITION_COLUMN,
     EXPERIMENTOR_WAIT_TRIAL_ID,
@@ -421,9 +421,9 @@ def _compute_manip_acc(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def final_sample_task_csv_path(subject: str | int, task: str) -> str:
-    """Path to one task file under ``BEHAVIOR_SAMPLE_DATA`` (analysis sample, not QC input)."""
+    """Path to one task file under ``BEHAVIOR_DATA_UNPROCESSED`` (analysis sample, not QC input)."""
     sid = str(standardize_subject_numbers(subject))
-    return os.path.join(BEHAVIOR_SAMPLE_DATA, sid, "task", f"{sid}_{task}.csv")
+    return os.path.join(BEHAVIOR_DATA_UNPROCESSED, sid, "task", f"{sid}_{task}.csv")
 
 
 def remove_practice_stage_rows(df: pd.DataFrame) -> pd.DataFrame:
