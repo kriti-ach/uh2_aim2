@@ -1,8 +1,8 @@
 """
 Summarize sample sizes before vs after applying ``exclusions.json``.
 
-Total subjects counted = union of subjects under ``BEHAVIOR_DATA_RAW``, ``BIDS_PATH/sub-*``, and any
-subject referenced in the JSON. Initial “has task” uses raw behavioral CSVs for the
+Total subjects counted = intersection of subjects that have a folder under ``BEHAVIOR_DATA_RAW``
+and a ``sub-*`` directory under ``BIDS_PATH``. Initial “has task” uses raw behavioral CSVs for the
 four behavioral tasks and a BIDS scan for ``rest`` (``*task-rest*_bold.nii*`` under
 ``sub-<id>/``).
 """
@@ -63,14 +63,6 @@ def _subjects_from_bids(bids_path: str) -> set[str]:
     }
 
 
-def _subjects_from_exclusions_payload(payload: dict) -> set[str]:
-    out: set[str] = set()
-    for key in ("behavioral_exclusions", "fmriprep_exclusions", "other_exclusions"):
-        for row in payload.get(key, []):
-            out.add(normalize_subject_bids(row.get("subject", "")))
-    return out
-
-
 def _subject_has_behavioral_raw(
     behavior_raw: str, sub_bids: str, task: str
 ) -> bool:
@@ -91,16 +83,14 @@ def _subject_has_rest_bids(bids_path: str, sub_bids: str) -> bool:
     return False
 
 
-def build_subject_universe(
-    payload: dict,
+def build_subjects_with_raw_folder_and_bids_sub(
     behavior_raw: str,
     bids_path: str,
 ) -> set[str]:
-    return (
-        _subjects_from_behavior_raw(behavior_raw)
-        | _subjects_from_bids(bids_path)
-        | _subjects_from_exclusions_payload(payload)
-    )
+    """Subjects with both a ``BEHAVIOR_DATA_RAW/<id>/`` folder and ``BIDS_PATH/sub-<id>/``."""
+    raw_subjects = _subjects_from_behavior_raw(behavior_raw)
+    bids_subjects = _subjects_from_bids(bids_path)
+    return raw_subjects & bids_subjects
 
 
 def compute_exclusion_sample_summary(
@@ -119,7 +109,7 @@ def compute_exclusion_sample_summary(
 
     payload = load_exclusions_payload(exclusions_json_path)
     excluded_pairs = collect_excluded_subject_task_pairs(payload, canonical_tasks)
-    all_subjects = build_subject_universe(payload, behavior_raw, bids_path)
+    all_subjects = build_subjects_with_raw_folder_and_bids_sub(behavior_raw, bids_path)
 
     behavioral_file_tasks = tuple(t for t in canonical_tasks if t != "rest")
 
@@ -176,12 +166,11 @@ def format_exclusion_summary_text(summary: dict[str, object]) -> str:
         f"BIDS root: {summary['bids_path']}",
         "",
         "Definitions:",
-        "  • Total subjects: unique subjects with a folder under behavioral raw, a BIDS sub-*,",
-        "    or any subject listed in the exclusions JSON.",
+        "  • Total subjects: unique subjects with a folder under behavioral raw and a "
+        "BIDS sub-* directory (both required).",
         "  • “Has task” before exclusion: raw CSV exists for the four behavioral tasks;",
-        "    rest = at least one *task-rest*_bold.nii* under sub-<id>/ (recursive).",
-        "  • After exclusion: same, minus any (subject, task) triple-list entry in the JSON",
-        "    that matches the five canonical tasks (case-insensitive).",
+        "    rest = at least one *task-rest*_bold.nii* under sub-<id>/.",
+        "  • After exclusion: same, minus any (subject, task) pair in the JSON.",
         "",
         f"Total number of subjects: {summary['total_subjects_n']}",
         f"Subject × task pairs flagged in JSON (canonical tasks only): "

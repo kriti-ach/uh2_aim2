@@ -4,7 +4,7 @@ Summarize sample size before vs after ``exclusions.json`` (behavioral, fMRIPrep,
 
 Writes ``exclusions_summary.txt`` in the output directory (default: directory of the JSON).
 
-Total subjects = union of subjects under behavioral raw, BIDS ``sub-*``, or mentioned in the JSON.
+Total subjects = subjects who have both a behavioral raw folder and a BIDS ``sub-*`` directory.
 Initial “has task” = raw behavioral CSV (four tasks) or BIDS ``*task-rest*_bold.nii*``.
 
 Usage::
