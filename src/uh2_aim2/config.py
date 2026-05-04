@@ -24,11 +24,8 @@ TRIMMED_EVENT_OUTPUT_BIDS_DIR = os.path.join(TRIMMED_EVENT_OUTPUT_ROOT, "bids_ou
 # Single exclusions file for behavioral + fMRIPrep QC:
 # ``/oak/stanford/groups/russpold/data/uh2/aim2/behavioral_data/behavioral_qc/exclusions.json``
 FINAL_EXCLUSIONS_JSON_PATH = os.path.join(BEHAVIOR_QC_PATH, "exclusions.json")
-# Default outputs for ``scripts/summarize_exclusions.py``
+# Default output for ``scripts/summarize_exclusions.py``
 EXCLUSION_SUMMARY_TXT = os.path.join(BEHAVIOR_QC_PATH, "exclusions_summary.txt")
-EXCLUSION_SUMMARY_PER_TASK_CSV = os.path.join(
-    BEHAVIOR_QC_PATH, "exclusions_summary_per_task.csv"
-)
 
 # Reasons recorded under ``behavioral_exclusions`` in ``exclusions.json`` (timing / missing-file rows).
 EXCLUSION_REASON_MISSING_BEHAVIOR_FILE = "missing behavior file"

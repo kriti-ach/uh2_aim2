@@ -1,7 +1,7 @@
 """
 Summarize sample sizes before vs after applying ``exclusions.json``.
 
-Universe = union of subjects under ``BEHAVIOR_DATA_RAW``, ``BIDS_PATH/sub-*``, and any
+Total subjects counted = union of subjects under ``BEHAVIOR_DATA_RAW``, ``BIDS_PATH/sub-*``, and any
 subject referenced in the JSON. Initial “has task” uses raw behavioral CSVs for the
 four behavioral tasks and a BIDS scan for ``rest`` (``*task-rest*_bold.nii*`` under
 ``sub-<id>/``).
@@ -111,7 +111,7 @@ def compute_exclusion_sample_summary(
     canonical_tasks: tuple[str, ...] = FULL_QC_CANONICAL_TASKS,
 ) -> dict[str, object]:
     """
-    Returns counts for reporting; keys include ``universe_n``, ``initial_complete_n``,
+    Returns counts for reporting; keys include ``total_subjects_n``, ``initial_complete_n``,
     ``final_complete_n``, ``per_task`` (list of dicts).
     """
     behavior_raw = behavior_raw if behavior_raw is not None else BEHAVIOR_DATA_RAW
@@ -119,15 +119,12 @@ def compute_exclusion_sample_summary(
 
     payload = load_exclusions_payload(exclusions_json_path)
     excluded_pairs = collect_excluded_subject_task_pairs(payload, canonical_tasks)
-    universe = sorted(
-        build_subject_universe(payload, behavior_raw, bids_path),
-        key=lambda s: int(s.replace("sub-", "")) if s.replace("sub-", "").isdigit() else s,
-    )
+    all_subjects = build_subject_universe(payload, behavior_raw, bids_path)
 
     behavioral_file_tasks = tuple(t for t in canonical_tasks if t != "rest")
 
     initial_has: dict[str, set[str]] = {t: set() for t in canonical_tasks}
-    for sub in universe:
+    for sub in all_subjects:
         for t in behavioral_file_tasks:
             if _subject_has_behavioral_raw(behavior_raw, sub, t):
                 initial_has[t].add(sub)
@@ -162,8 +159,7 @@ def compute_exclusion_sample_summary(
         "behavior_raw": os.path.abspath(behavior_raw),
         "bids_path": os.path.abspath(bids_path),
         "canonical_tasks": list(canonical_tasks),
-        "universe_n": len(universe),
-        "universe_subjects": universe,
+        "total_subjects_n": len(all_subjects),
         "n_excluded_subject_task_pairs_in_json": len(excluded_pairs),
         "initial_complete_n_all_five_tasks": len(initial_complete),
         "final_complete_n_all_five_tasks": len(final_complete),
@@ -180,14 +176,14 @@ def format_exclusion_summary_text(summary: dict[str, object]) -> str:
         f"BIDS root: {summary['bids_path']}",
         "",
         "Definitions:",
-        "  • Universe: subjects with a folder under behavioral raw, or a BIDS sub-*,",
+        "  • Total subjects: unique subjects with a folder under behavioral raw, a BIDS sub-*,",
         "    or any subject listed in the exclusions JSON.",
         "  • “Has task” before exclusion: raw CSV exists for the four behavioral tasks;",
         "    rest = at least one *task-rest*_bold.nii* under sub-<id>/ (recursive).",
         "  • After exclusion: same, minus any (subject, task) triple-list entry in the JSON",
         "    that matches the five canonical tasks (case-insensitive).",
         "",
-        f"Subjects in universe: {summary['universe_n']}",
+        f"Total number of subjects: {summary['total_subjects_n']}",
         f"Subject × task pairs flagged in JSON (canonical tasks only): "
         f"{summary['n_excluded_subject_task_pairs_in_json']}",
         "",
@@ -208,17 +204,14 @@ def format_exclusion_summary_text(summary: dict[str, object]) -> str:
     return "\n".join(lines)
 
 
-def write_exclusion_summary_outputs(
+def write_exclusion_summary_txt(
     exclusions_json_path: str,
     output_txt_path: str,
-    output_csv_path: str,
     *,
     behavior_raw: str | None = None,
     bids_path: str | None = None,
 ) -> dict[str, object]:
-    """Write human-readable ``.txt`` and per-task ``.csv``; return the summary dict."""
-    import pandas as pd
-
+    """Write human-readable ``exclusions_summary.txt``; return the summary dict."""
     summary = compute_exclusion_sample_summary(
         exclusions_json_path,
         behavior_raw=behavior_raw,
@@ -227,34 +220,9 @@ def write_exclusion_summary_outputs(
     txt_dir = os.path.dirname(os.path.abspath(output_txt_path))
     if txt_dir:
         os.makedirs(txt_dir, exist_ok=True)
-    csv_dir = os.path.dirname(os.path.abspath(output_csv_path))
-    if csv_dir:
-        os.makedirs(csv_dir, exist_ok=True)
 
     text = format_exclusion_summary_text(summary)
     with open(output_txt_path, "w", encoding="utf-8") as f:
         f.write(text)
-
-    df = pd.DataFrame(summary["per_task"])  # type: ignore[arg-type]
-    df.to_csv(output_csv_path, index=False)
-
-    base_csv = os.path.splitext(output_csv_path)[0]
-    overview_path = f"{base_csv}_overview.csv"
-    overview_rows = [
-        {"metric": "universe_n", "value": summary["universe_n"]},
-        {
-            "metric": "initial_complete_n_all_five_tasks",
-            "value": summary["initial_complete_n_all_five_tasks"],
-        },
-        {
-            "metric": "final_complete_n_all_five_tasks",
-            "value": summary["final_complete_n_all_five_tasks"],
-        },
-        {
-            "metric": "n_excluded_subject_task_pairs_in_json",
-            "value": summary["n_excluded_subject_task_pairs_in_json"],
-        },
-    ]
-    pd.DataFrame(overview_rows).to_csv(overview_path, index=False)
 
     return summary

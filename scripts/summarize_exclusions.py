@@ -2,13 +2,9 @@
 """
 Summarize sample size before vs after ``exclusions.json`` (behavioral, fMRIPrep, other).
 
-Writes in the output directory (default: directory of ``--exclusions-json``):
+Writes ``exclusions_summary.txt`` in the output directory (default: directory of the JSON).
 
-- ``exclusions_summary.txt`` — human-readable overview
-- ``exclusions_summary_per_task.csv`` — N before / after / dropped per canonical task
-- ``exclusions_summary_per_task_overview.csv`` — key scalars (universe N, complete N, …)
-
-Universe = subjects under behavioral raw, BIDS ``sub-*``, or mentioned in the JSON.
+Total subjects = union of subjects under behavioral raw, BIDS ``sub-*``, or mentioned in the JSON.
 Initial “has task” = raw behavioral CSV (four tasks) or BIDS ``*task-rest*_bold.nii*``.
 
 Usage::
@@ -27,9 +23,8 @@ import sys
 
 from uh2_aim2.config import BEHAVIOR_DATA_RAW, BIDS_PATH, FINAL_EXCLUSIONS_JSON_PATH
 from uh2_aim2.utils.exclusion_summary_utils import (
-    compute_exclusion_sample_summary,
     format_exclusion_summary_text,
-    write_exclusion_summary_outputs,
+    write_exclusion_summary_txt,
 )
 
 
@@ -44,7 +39,7 @@ def main() -> int:
         "-o",
         "--output-dir",
         default=None,
-        help="Directory for summary files (default: same directory as exclusions JSON)",
+        help="Directory for exclusions_summary.txt (default: same directory as exclusions JSON)",
     )
     parser.add_argument(
         "--behavior-raw",
@@ -71,23 +66,15 @@ def main() -> int:
     os.makedirs(out_dir, exist_ok=True)
 
     txt_path = os.path.join(out_dir, "exclusions_summary.txt")
-    csv_path = os.path.join(out_dir, "exclusions_summary_per_task.csv")
 
-    write_exclusion_summary_outputs(
+    summary = write_exclusion_summary_txt(
         excl,
         txt_path,
-        csv_path,
         behavior_raw=args.behavior_raw,
         bids_path=args.bids,
     )
-
-    s = compute_exclusion_sample_summary(
-        excl, behavior_raw=args.behavior_raw, bids_path=args.bids
-    )
-    print(format_exclusion_summary_text(s))
+    print(format_exclusion_summary_text(summary))
     print(f"Wrote: {txt_path}")
-    print(f"Wrote: {csv_path}")
-    print(f"Wrote: {os.path.splitext(csv_path)[0]}_overview.csv")
     return 0
 
 
