@@ -15,8 +15,9 @@ Examples::
     # All subjects (writes to -o; Oak unchanged unless --apply-to-bids)
     PYTHONPATH=src python scripts/sanitize_bids_events.py -o /path/to/out --subjects all
 
-    # Overwrite originals under BIDS (use with care)
+    # Overwrite originals under BIDS (use with care). Either form works:
     PYTHONPATH=src python scripts/sanitize_bids_events.py --apply-to-bids --subjects all
+    PYTHONPATH=src python scripts/sanitize_bids_events.py --apply-to-bids all
 """
 
 from __future__ import annotations
@@ -61,9 +62,10 @@ def main() -> int:
     parser.add_argument(
         "--subjects",
         nargs="+",
-        default=["1021"],
+        default=None,
         metavar="ID",
-        help="Subject id(s), e.g. 1021, or ``all`` alone for every sub-* with func/",
+        help="Subject id(s), or ``all`` for every sub-* with func/. "
+        "If omitted, use trailing IDs or default 1021.",
     )
     parser.add_argument(
         "--apply-to-bids",
@@ -75,6 +77,13 @@ def main() -> int:
         default=None,
         help="Run summary CSV path (default: <output-dir>/sanitize_events_summary.csv)",
     )
+    parser.add_argument(
+        "subjects_trailing",
+        nargs="*",
+        metavar="ID",
+        help="Optional subject id(s) or ``all`` (e.g. after --apply-to-bids). "
+        "Ignored if --subjects is set.",
+    )
     args = parser.parse_args()
 
     bids_root = Path(args.bids_root).resolve()
@@ -82,11 +91,18 @@ def main() -> int:
         print(f"BIDS root not found: {bids_root}", file=sys.stderr)
         return 1
 
-    if len(args.subjects) == 1 and args.subjects[0].lower() == "all":
+    if args.subjects is not None:
+        raw_subjects = list(args.subjects)
+    elif args.subjects_trailing:
+        raw_subjects = list(args.subjects_trailing)
+    else:
+        raw_subjects = ["1021"]
+
+    if len(raw_subjects) == 1 and raw_subjects[0].lower() == "all":
         subject_ids = _list_all_subject_ids(bids_root)
     else:
         subject_ids = [
-            str(s).strip().replace("sub-", "").replace("s", "") for s in args.subjects
+            str(s).strip().replace("sub-", "").replace("s", "") for s in raw_subjects
         ]
 
     if not subject_ids:
