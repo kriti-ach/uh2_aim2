@@ -16,6 +16,8 @@ BEHAVIOR_TIMING_QC_CSV = os.path.join(BEHAVIOR_QC_PATH, "behavior_timing_qc.csv"
 BEHAVIOR_TIMING_QC_FLAGGED_CSV = os.path.join(BEHAVIOR_QC_PATH, "behavior_timing_qc_flagged.csv")
 # BIDS root (e.g. ``*events.tsv`` under ``sub-*/func/``)
 BIDS_PATH = os.path.join(BASE_PATH, "BIDS")
+# Pre-sanitize copies of ``*_events.tsv`` when using ``scripts/sanitize_bids_events.py --apply-to-bids``
+BIDS_EVENTS_BACKUP_PATH = os.path.join(BASE_PATH, "BIDS_event_files_old")
 
 # Project-local output path (scratch clone) for previewing trimmed BIDS event files
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))

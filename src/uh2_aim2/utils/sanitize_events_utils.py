@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import pandas as pd
@@ -89,6 +90,28 @@ def iter_subject_func_events(bids_root: Path, subject_id: str) -> list[Path]:
 
 def relative_path_under_bids(source: Path, bids_root: Path) -> Path:
     return source.resolve().relative_to(bids_root.resolve())
+
+
+def backup_bids_events_tsv(
+    source_tsv: Path,
+    bids_root: Path,
+    backup_root: Path,
+    *,
+    skip_if_backup_exists: bool = True,
+) -> tuple[Path, bool]:
+    """
+    Copy ``source_tsv`` under ``backup_root`` preserving path relative to ``bids_root``.
+
+    Returns ``(backup_path, copied)``. If ``skip_if_backup_exists`` and the backup file
+    already exists, returns ``(path, False)`` without overwriting (keeps first snapshot).
+    """
+    rel = relative_path_under_bids(source_tsv, bids_root)
+    dest = backup_root / rel
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if skip_if_backup_exists and dest.exists():
+        return dest, False
+    shutil.copy2(source_tsv, dest)
+    return dest, True
 
 
 def sanitize_events_file(

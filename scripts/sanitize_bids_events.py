@@ -15,7 +15,9 @@ Examples::
     # All subjects (writes to -o; Oak unchanged unless --apply-to-bids)
     PYTHONPATH=src python scripts/sanitize_bids_events.py -o /path/to/out --subjects all
 
-    # Overwrite originals under BIDS (use with care). Either form works:
+    # Overwrite originals under BIDS (use with care). Originals are copied first to
+    # ``BIDS_EVENTS_BACKUP_PATH`` (``.../BIDS_event_files_old``) unless that backup file
+    # already exists.
     PYTHONPATH=src python scripts/sanitize_bids_events.py --apply-to-bids --subjects all
     PYTHONPATH=src python scripts/sanitize_bids_events.py --apply-to-bids all
 """
@@ -29,8 +31,12 @@ from pathlib import Path
 
 import pandas as pd
 
-from uh2_aim2.config import BIDS_PATH
-from uh2_aim2.utils.sanitize_events_utils import iter_subject_func_events, sanitize_events_file
+from uh2_aim2.config import BIDS_EVENTS_BACKUP_PATH, BIDS_PATH
+from uh2_aim2.utils.sanitize_events_utils import (
+    backup_bids_events_tsv,
+    iter_subject_func_events,
+    sanitize_events_file,
+)
 
 
 def _default_output_root() -> str:
@@ -70,7 +76,12 @@ def main() -> int:
     parser.add_argument(
         "--apply-to-bids",
         action="store_true",
-        help="Overwrite event files in place under --bids-root.",
+        help="Overwrite event files in place (after copying originals to --backup-dir).",
+    )
+    parser.add_argument(
+        "--backup-dir",
+        default=BIDS_EVENTS_BACKUP_PATH,
+        help="With --apply-to-bids: copy each original *_events.tsv here first (mirrors sub-*/func/).",
     )
     parser.add_argument(
         "--summary-csv",
@@ -111,10 +122,14 @@ def main() -> int:
 
     if args.apply_to_bids:
         out_root = bids_root
+        backup_root = Path(args.backup_dir).resolve()
+        backup_root.mkdir(parents=True, exist_ok=True)
         print("WARNING: --apply-to-bids overwrites original *_events.tsv files.", file=sys.stderr)
+        print(f"  Pre-sanitize backups go to: {backup_root}", file=sys.stderr)
     else:
         out_root = Path(args.output_dir).resolve()
         out_root.mkdir(parents=True, exist_ok=True)
+        backup_root = None
 
     summary_path = (
         Path(args.summary_csv)
@@ -123,11 +138,19 @@ def main() -> int:
     )
 
     rows: list[dict[str, object]] = []
+    n_backed_up = 0
+    n_backup_skipped = 0
     for sid in subject_ids:
         paths = iter_subject_func_events(bids_root, sid)
         if not paths:
             print(f"  (no *_events.tsv under {bids_root / f'sub-{sid}' / 'func'})")
         for src in paths:
+            if args.apply_to_bids and backup_root is not None:
+                _bpath, copied = backup_bids_events_tsv(src, bids_root, backup_root)
+                if copied:
+                    n_backed_up += 1
+                else:
+                    n_backup_skipped += 1
             dest, task, notes = sanitize_events_file(src, bids_root, out_root)
             print(f"  {src.name} -> {dest}")
             rows.append(
@@ -145,6 +168,12 @@ def main() -> int:
         summary_path.parent.mkdir(parents=True, exist_ok=True)
         summary_df.to_csv(summary_path, index=False)
         print(f"\nSummary: {summary_path}")
+    else:
+        print(
+            f"\nBackups: {n_backed_up} copied to {backup_root}, "
+            f"{n_backup_skipped} skipped (backup already existed)",
+            file=sys.stderr,
+        )
     print(f"Files written: {len(rows)}")
     return 0
 
